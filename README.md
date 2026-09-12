@@ -8,31 +8,14 @@ WOMC also includes an opt-in Codex status-line setup. It replaces the default th
 
 ## Install
 
-Codex 0.154.0 supports installation from a configured marketplace. Until this plugin is published in one, place this repository at `<marketplace-root>/plugins/works-on-my-codex` and create `<marketplace-root>/.agents/plugins/marketplace.json`:
-
-```json
-{
-  "name": "works-on-my-codex-local",
-  "interface": { "displayName": "Works on My Codex Local" },
-  "plugins": [
-    {
-      "name": "works-on-my-codex",
-      "source": { "source": "local", "path": "./plugins/works-on-my-codex" },
-      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-      "category": "Productivity"
-    }
-  ]
-}
-```
-
-Then run:
+Add this GitHub repository as a Codex marketplace, then install the plugin:
 
 ```sh
-codex plugin marketplace add <marketplace-root>
-codex plugin add works-on-my-codex@<marketplace-name>
+codex plugin marketplace add yeejh96-bit/worksonmycodex --ref main
+codex plugin add works-on-my-codex@works-on-my-codex
 ```
 
-Those commands change the user's Codex plugin configuration. Review the marketplace path and run them explicitly; WOMC never edits global or personal Codex settings during project setup. Start a new Codex thread after installing so the skill is discovered.
+Those commands change the user's Codex plugin configuration. Review them and run them explicitly; WOMC never edits global or personal Codex settings during project setup. Start a new Codex thread after installing so the skills are discovered.
 
 For development without installing, invoke the bundled generator directly:
 
@@ -73,7 +56,7 @@ WOMC requires explicit approval before reading or exposing secrets, deleting dat
 
 ## Remove
 
-Remove only the complete WOMC marked block from the target project's active root `AGENTS.md` or `AGENTS.override.md`; keep all surrounding user content. Delete that file only if it contains nothing else and you intend to remove it. To uninstall the local example, run `codex plugin remove works-on-my-codex@works-on-my-codex-local` after reviewing that command's scope.
+Remove only the complete WOMC marked block from the target project's active root `AGENTS.md` or `AGENTS.override.md`; keep all surrounding user content. Delete that file only if it contains nothing else and you intend to remove it. To uninstall the plugin, run `codex plugin remove works-on-my-codex@works-on-my-codex` after reviewing that command's scope.
 
 ## Limits
 

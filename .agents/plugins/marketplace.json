@@ -1,0 +1,21 @@
+{
+  "name": "works-on-my-codex",
+  "interface": {
+    "displayName": "Works on My Codex"
+  },
+  "plugins": [
+    {
+      "name": "works-on-my-codex",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/yeejh96-bit/worksonmycodex.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
