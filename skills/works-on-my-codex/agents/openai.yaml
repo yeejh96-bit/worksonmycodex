@@ -1,0 +1,6 @@
+interface:
+  display_name: "Works on My Codex"
+  short_description: "Build a thin, project-specific Codex harness"
+  default_prompt: "Use $works-on-my-codex to set up a thin Codex harness in this project."
+policy:
+  allow_implicit_invocation: true

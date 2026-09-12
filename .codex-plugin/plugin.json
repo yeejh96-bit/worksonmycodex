@@ -1,0 +1,18 @@
+{
+  "name": "works-on-my-codex",
+  "version": "0.1.0",
+  "description": "Set up a thin, project-specific Codex harness for solo software projects.",
+  "author": {
+    "name": "Works on My Codex contributors"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Works on My Codex",
+    "shortDescription": "Set up a thin, project-specific Codex harness.",
+    "longDescription": "WOMC inspects a project, safely creates or improves its AGENTS.md, and connects completion criteria to commands the project can actually run.",
+    "developerName": "Works on My Codex contributors",
+    "category": "Productivity",
+    "capabilities": ["Write"],
+    "defaultPrompt": "Set up a Works on My Codex harness in this project."
+  }
+}
