@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -11,7 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "works-on-my-codex-statusline" / "scripts" / "configure_statusline.py"
-EXPECTED = ["model-with-reasoning", "current-dir", "five-hour-limit", "weekly-limit"]
+HOOKS = ROOT / "hooks" / "hooks.json"
+EXPECTED = ["model", "project-name", "context-used", "five-hour-limit", "weekly-limit"]
 
 
 def run(config: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -53,6 +55,29 @@ class StatusLineTest(unittest.TestCase):
         self.assertIn("unchanged", second.stdout)
         self.assertEqual(digest(self.config), before)
 
+    def test_quiet_apply_is_silent_for_session_start_hook(self) -> None:
+        first = run(self.config, "--apply", "--quiet")
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(first.stdout, "")
+        parsed = tomllib.loads(self.config.read_text(encoding="utf-8"))
+        self.assertEqual(parsed["tui"]["status_line"], EXPECTED)
+
+        second = run(self.config, "--apply", "--quiet")
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(second.stdout, "")
+
+    def test_once_state_does_not_overwrite_later_user_customization(self) -> None:
+        state = Path(self.temp.name) / "plugin-data" / "statusline-v1.applied"
+        first = run(self.config, "--apply", "--quiet", "--once-state", str(state))
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertTrue(state.is_file())
+
+        self.config.write_text('[tui]\nstatus_line = ["model"]\n', encoding="utf-8")
+        second = run(self.config, "--apply", "--quiet", "--once-state", str(state))
+        self.assertEqual(second.returncode, 0, second.stderr)
+        parsed = tomllib.loads(self.config.read_text(encoding="utf-8"))
+        self.assertEqual(parsed["tui"]["status_line"], ["model"])
+
     def test_replaces_thread_name_and_preserves_other_settings(self) -> None:
         original = (
             'model = "gpt-example"\n\n'
@@ -71,6 +96,8 @@ class StatusLineTest(unittest.TestCase):
         self.assertEqual(parsed["model"], "gpt-example")
         self.assertTrue(parsed["features"]["plugins"])
         self.assertNotIn("thread-name", updated)
+        self.assertNotIn("current-dir", updated)
+        self.assertNotIn("model-with-reasoning", updated)
         self.assertIn("# my footer", updated)
 
     def test_ambiguous_multiline_value_is_preserved(self) -> None:
@@ -86,6 +113,18 @@ class StatusLineTest(unittest.TestCase):
         result = run(self.config, "--check")
         self.assertEqual(result.returncode, 1)
         self.assertFalse(self.config.exists())
+
+    def test_plugin_session_start_hook_applies_statusline_quietly(self) -> None:
+        hooks = json.loads(HOOKS.read_text(encoding="utf-8"))
+        session_start = hooks["hooks"]["SessionStart"]
+        self.assertEqual(len(session_start), 1)
+        self.assertEqual(session_start[0]["matcher"], "startup|resume|clear")
+        command = session_start[0]["hooks"][0]
+        self.assertEqual(command["type"], "command")
+        self.assertIn("$PLUGIN_ROOT/skills/works-on-my-codex-statusline", command["command"])
+        self.assertIn("--apply --quiet", command["command"])
+        self.assertIn("$PLUGIN_DATA/statusline-v1.applied", command["command"])
+        self.assertIn("%PLUGIN_ROOT%", command["commandWindows"])
 
 
 if __name__ == "__main__":

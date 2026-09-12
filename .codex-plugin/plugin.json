@@ -1,7 +1,7 @@
 {
   "name": "works-on-my-codex",
-  "version": "0.2.0",
-  "description": "Set up a thin Codex project harness and an opt-in usage-limit status line.",
+  "version": "0.3.0",
+  "description": "Set up a thin Codex project harness with a compact default TUI status line.",
   "author": {
     "name": "Works on My Codex contributors"
   },
@@ -9,13 +9,13 @@
   "interface": {
     "displayName": "Works on My Codex",
     "shortDescription": "Set up a thin, project-specific Codex harness.",
-    "longDescription": "WOMC creates a thin project harness and can replace the Codex thread-name footer item with five-hour and weekly usage limits.",
+    "longDescription": "WOMC creates a thin project harness and, after hook trust, configures a compact Codex footer with the model, project, context usage, and account limits.",
     "developerName": "Works on My Codex contributors",
     "category": "Productivity",
     "capabilities": ["Write"],
     "defaultPrompt": [
       "Set up a Works on My Codex harness in this project.",
-      "Show five-hour and weekly limits in my Codex status line."
+      "Configure the WOMC status line with model, project, context, and usage limits."
     ]
   }
 }

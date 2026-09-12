@@ -42,11 +42,10 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         agents = self.project / "AGENTS.md"
         content = agents.read_text(encoding="utf-8")
-        self.assertIn("Empty starter repository", content)
         self.assertIn("A tiny notes app", content)
         self.assertEqual(content.count(START), 1)
-        self.assertIn("carry it through implementation, relevant verification, and a completion report", content)
-        self.assertIn("Do not stop at a plan or partial implementation", content)
+        self.assertNotIn("Working contract", content)
+        self.assertNotIn("No additional project-specific guardrails", content)
         before = digest(agents)
 
         second = run(self.project, "--purpose", "A tiny notes app")
@@ -134,6 +133,53 @@ class SetupHarnessTest(unittest.TestCase):
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn(f"`{command}` (project check)", content)
         self.assertIn("only when it exits successfully", content)
+
+    def test_generated_block_contains_only_durable_supplied_guidance(self) -> None:
+        result = run(
+            self.project,
+            "--purpose",
+            "A local notes app",
+            "--guardrail",
+            "Keep user data on device.",
+            "--done",
+            "The documented export check passes.",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("A local notes app", content)
+        self.assertIn("Keep user data on device.", content)
+        self.assertIn("The documented export check passes.", content)
+        self.assertNotIn("Working contract", content)
+        self.assertNotIn("Routine project edits", content)
+        self.assertNotIn("independent verification", content)
+
+    def test_missing_validation_command_is_reported_without_persisting_filler(self) -> None:
+        result = run(self.project, "--purpose", "A tiny notes app")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no validation command was detected", result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("No project validation command", content)
+
+    def test_refresh_replaces_legacy_generic_contract_with_thin_block(self) -> None:
+        agents = self.project / "AGENTS.md"
+        agents.write_text(
+            "# Team rules\n\nKeep this.\n\n"
+            f"{START}\n## WOMC project harness\n\n"
+            "### Working contract\n- Do not stop at a plan.\n"
+            f"{END}\n",
+            encoding="utf-8",
+        )
+
+        result = run(self.project, "--purpose", "A tiny notes app")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = agents.read_text(encoding="utf-8")
+        self.assertIn("# Team rules\n\nKeep this.", content)
+        self.assertIn("A tiny notes app", content)
+        self.assertNotIn("Working contract", content)
+        self.assertNotIn("Do not stop at a plan", content)
 
     def test_explicit_command_does_not_duplicate_a_detected_command(self) -> None:
         (self.project / "package.json").write_text(

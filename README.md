@@ -1,10 +1,10 @@
 # Works on My Codex
 
-Works on My Codex (WOMC) is a Codex plugin for adding a thin, project-specific harness to an empty folder or an existing SaaS, web, or app project. It inspects the project first, preserves existing work, and creates or updates a managed section in the root `AGENTS.md` that links an autonomous working contract, durable guardrails, and completion criteria to real project commands.
+Works on My Codex (WOMC) is a Codex plugin for adding a thin, project-specific harness to an empty folder or an existing SaaS, web, or app project. It inspects the project first, preserves existing work, and creates or updates a managed section in the root `AGENTS.md` containing only durable project context, project-specific guardrails, and reusable completion checks.
 
-The task itself stays in the conversation. WOMC does not turn every request into permanent process documentation, force a framework or browser dependency, or require a separate verifier for routine work.
+The task and its one-off acceptance criteria stay in the conversation. WOMC leaves implementation choices to Codex and does not turn every request into permanent process documentation or force a framework or browser dependency.
 
-WOMC also includes an opt-in Codex status-line setup. It replaces the default thread name with the account's five-hour and weekly usage-limit indicators while retaining the model and current directory.
+WOMC also includes a compact default Codex status line: model, project folder, context-window usage, five-hour limit, and weekly limit. The shorter model and project fields leave enough room for the usage fields to remain visible while typing at ordinary terminal widths.
 
 ## Install
 
@@ -15,20 +15,27 @@ codex plugin marketplace add yeejh96-bit/worksonmycodex --ref main
 codex plugin add works-on-my-codex@works-on-my-codex
 ```
 
-Those commands change the user's Codex plugin configuration. Review them and run them explicitly; WOMC never edits global or personal Codex settings during project setup. Start a new Codex thread after installing so the skills are discovered.
+Those commands change the user's Codex plugin configuration. Review them and run them explicitly. On the first new Codex session, review and trust the WOMC `SessionStart` hook with `/hooks`; then start one more session so the status-line setting loaded by Codex includes the hook's update. The hook updates `tui.status_line` once, preserves unrelated settings, and records success in plugin data so later user customization is not overwritten.
 
-For development without installing, invoke the bundled generator directly:
+For development without installing, invoke the bundled generator directly. The generator reads known manifests but does not interpret commands written in prose, so pass those commands explicitly:
 
 ```sh
-python3 skills/works-on-my-codex/scripts/setup_harness.py --project /path/to/project --dry-run
-python3 skills/works-on-my-codex/scripts/setup_harness.py --project /path/to/project
+python3 skills/works-on-my-codex/scripts/setup_harness.py \
+  --project /path/to/project \
+  --check-command "make test" \
+  --dry-run
+python3 skills/works-on-my-codex/scripts/setup_harness.py \
+  --project /path/to/project \
+  --check-command "make test"
 ```
 
 ## Use
 
-Ask Codex: `Use $works-on-my-codex to set up WOMC in this project.` Add the product purpose, durable guardrails, or measurable completion criteria if they are known. Codex inspects the repository, records exact safe validation commands from manifests, task runners, test configuration, and project documentation, previews and applies the managed block, reviews the diff, and runs those commands.
+Ask Codex: `Use $works-on-my-codex to set up WOMC in this project.` Add the product purpose, durable guardrails, or reusable project completion checks if they are known. Keep the current task and its one-off acceptance criteria in the conversation. Codex inspects the repository, records exact safe validation commands from manifests, task runners, test configuration, and project documentation, previews and applies the managed block, reviews the diff, and runs those commands.
 
-To configure the lower TUI status line once for all projects, ask: `Use $works-on-my-codex-statusline to replace the thread name with five-hour and weekly limits.` Codex previews the change, preserves unrelated settings, and updates the user-level `config.toml` only after the request authorizes that global scope. Codex plugins cannot execute a post-install script, so installing alone does not alter personal settings. You can make the same selection manually with `/statusline`.
+The trusted plugin hook configures the lower TUI status line once for all projects. To preview, repair, or apply it manually, ask: `Use $works-on-my-codex-statusline to configure the WOMC status line.` You can also make the same selection with `/statusline`.
+
+Codex renders `context-used` as the percentage of the current context window already used. The native five-hour and weekly items are currently percentages remaining, and the public status-line configuration does not support custom labels or converting them to percentages used. WOMC therefore does not falsely label a remaining value as used. Codex also omits an account-limit item when that window is unavailable.
 
 Empty-project example:
 
@@ -48,9 +55,10 @@ Use $works-on-my-codex in this repository. Preserve our AGENTS.md and current ch
 - If a non-empty root `AGENTS.override.md` exists, updates its managed block because Codex gives it precedence over `AGENTS.md`.
 - Preserves user-authored instruction text and owns only the `womc:project-harness` marked block on later runs.
 - Refuses to write when WOMC markers are partial or duplicated.
+- Keeps the current task, generic agent behavior, and one-off acceptance criteria out of the generated block.
 - Does not create nested `AGENTS.md` or product documents unless the repository genuinely needs scoped rules or longer durable context.
-- Does not create Codex apps, MCP servers, hooks, custom status-line executables, or project permission configuration.
-- Does not change the status line during installation. The separate status-line skill performs that personal configuration only when explicitly requested.
+- Does not create Codex apps, MCP servers, custom status-line executables, or project permission configuration.
+- Includes a trusted, one-time `SessionStart` hook that applies only the documented native status-line selection. Codex requires the user to review and trust plugin hooks before they run.
 
 WOMC requires explicit approval before reading or exposing secrets, deleting data, changing a production database, making a real payment, deploying, changing an external service, or changing a remote repository. Normal project edits and local lint, typecheck, tests, builds, and dev-server runs remain autonomous and reversible.
 

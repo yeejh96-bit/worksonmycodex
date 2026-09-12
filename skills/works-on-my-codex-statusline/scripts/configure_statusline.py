@@ -12,8 +12,9 @@ import tomllib
 from pathlib import Path
 
 ITEMS = [
-    "model-with-reasoning",
-    "current-dir",
+    "model",
+    "project-name",
+    "context-used",
     "five-hour-limit",
     "weekly-limit",
 ]
@@ -125,12 +126,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=default_config(), help="Config path for testing")
     parser.add_argument("--apply", action="store_true", help="Write the change; default is preview only")
     parser.add_argument("--check", action="store_true", help="Exit 0 when current, 1 when a change is needed")
+    parser.add_argument("--quiet", action="store_true", help="Suppress normal output (for the trusted plugin hook)")
+    parser.add_argument(
+        "--once-state",
+        type=Path,
+        help="With --apply, skip after this marker records one successful default setup",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     path = args.config.expanduser().resolve()
+    once_state = args.once_state.expanduser().resolve() if args.once_state else None
+    if once_state and once_state.exists():
+        if not args.quiet:
+            print(f"WOMC status line default already initialized: {once_state}")
+        return 0
     try:
         current = read_config(path)
         desired = update(current)
@@ -139,23 +151,31 @@ def main() -> int:
         return 2
 
     changed = current != desired
-    print(f"Config: {path}")
-    print(f"Status line: {', '.join(ITEMS)}")
+    if not args.quiet:
+        print(f"Config: {path}")
+        print(f"Status line: {', '.join(ITEMS)}")
     if args.check:
-        print("WOMC status line is current." if not changed else "WOMC status line would change.")
+        if not args.quiet:
+            print("WOMC status line is current." if not changed else "WOMC status line would change.")
         return 0 if not changed else 1
     if not args.apply:
-        print("Preview only; rerun with --apply to write." if changed else "No change needed.")
-        return 0
-    if not changed:
-        print("WOMC status line unchanged.")
+        if not args.quiet:
+            print("Preview only; rerun with --apply to write." if changed else "No change needed.")
         return 0
     try:
-        atomic_write(path, desired)
+        if changed:
+            atomic_write(path, desired)
+        if once_state:
+            atomic_write(once_state, SETTING + "\n")
     except OSError as exc:
         print(f"WOMC status-line error: {exc}", file=sys.stderr)
         return 2
-    print("WOMC status line updated. Start a new Codex session to use it.")
+    if not changed:
+        if not args.quiet:
+            print("WOMC status line unchanged.")
+        return 0
+    if not args.quiet:
+        print("WOMC status line updated. Start a new Codex session to use it.")
     return 0
 
 
