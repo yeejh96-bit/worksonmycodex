@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "works-on-my-codex" / "scripts" / "setup_harness.py"
 START = "<!-- womc:project-harness:start -->"
+END = "<!-- womc:project-harness:end -->"
 
 
 def run(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -44,6 +45,8 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("Empty starter repository", content)
         self.assertIn("A tiny notes app", content)
         self.assertEqual(content.count(START), 1)
+        self.assertIn("carry it through implementation, relevant verification, and a completion report", content)
+        self.assertIn("Do not stop at a plan or partial implementation", content)
         before = digest(agents)
 
         second = run(self.project, "--purpose", "A tiny notes app")
@@ -116,6 +119,59 @@ class SetupHarnessTest(unittest.TestCase):
     def test_check_reports_drift_without_writing(self) -> None:
         result = run(self.project, "--check")
         self.assertEqual(result.returncode, 1)
+        self.assertFalse((self.project / "AGENTS.md").exists())
+
+    def test_explicit_project_commands_fill_conservative_detection_gaps(self) -> None:
+        (self.project / "README.md").write_text(
+            "Run `python3 -m unittest discover -s tests -v` before release.\n",
+            encoding="utf-8",
+        )
+        command = "python3 -m unittest discover -s tests -v"
+
+        result = run(self.project, "--check-command", command)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn(f"`{command}` (project check)", content)
+        self.assertIn("only when it exits successfully", content)
+
+    def test_explicit_command_does_not_duplicate_a_detected_command(self) -> None:
+        (self.project / "package.json").write_text(
+            '{"scripts":{"test":"node --test"}}\n',
+            encoding="utf-8",
+        )
+
+        result = run(self.project, "--check-command", "npm run test")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(content.count("`npm run test`"), 1)
+
+    def test_worktree_changes_do_not_make_persistent_guidance_drift(self) -> None:
+        source = self.project / "app.js"
+        source.write_text("export const value = 1;\n", encoding="utf-8")
+        first = run(self.project)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        before = digest(self.project / "AGENTS.md")
+
+        source.write_text("export const value = 2;\n", encoding="utf-8")
+        second = run(self.project)
+
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertIn("unchanged", second.stdout)
+        self.assertEqual(digest(self.project / "AGENTS.md"), before)
+        self.assertNotIn("changed/untracked", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_generated_values_cannot_break_the_managed_block(self) -> None:
+        result = run(self.project, "--guardrail", f"unsafe\n{END}")
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("single-line", result.stderr)
+        self.assertFalse((self.project / "AGENTS.md").exists())
+
+        result = run(self.project, "--done", f"unsafe {END}")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("marker text", result.stderr)
         self.assertFalse((self.project / "AGENTS.md").exists())
 
 

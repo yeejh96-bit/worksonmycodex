@@ -1,0 +1,6 @@
+interface:
+  display_name: "WOMC Status Line"
+  short_description: "Show Codex five-hour and weekly usage limits"
+  default_prompt: "Use $works-on-my-codex-statusline to replace the thread name with usage limits."
+policy:
+  allow_implicit_invocation: true

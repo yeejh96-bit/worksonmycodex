@@ -7,7 +7,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -195,23 +194,6 @@ def detect(root: Path) -> tuple[list[str], str | None, list[tuple[str, str]], st
     return stacks or ["Not detected"], manager, unique, dev_command
 
 
-def git_summary(root: Path, managed_name: str) -> str:
-    try:
-        probe = subprocess.run(
-            ["git", "-C", str(root), "status", "--short", "--", ".", f":(exclude){managed_name}"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return "Git status unavailable"
-    if probe.returncode != 0:
-        return "Not a Git repository"
-    count = len([line for line in probe.stdout.splitlines() if line.strip()])
-    return "Clean" if count == 0 else f"Preserve {count} existing changed/untracked path(s)"
-
-
 def bullet_lines(values: Iterable[str], fallback: str) -> list[str]:
     items = [value.strip() for value in values if value.strip()]
     return [f"- {item}" for item in items] or [f"- {fallback}"]
@@ -222,10 +204,13 @@ def make_block(
     purpose: str | None,
     guardrails: list[str],
     done: list[str],
-    managed_name: str,
+    check_commands: list[str],
 ) -> str:
     is_empty = not meaningful_entries(root)
     stacks, manager, commands, dev_command = detect(root)
+    for command in check_commands:
+        if not any(existing_command == command for _, existing_command in commands):
+            commands.append(("project check", command))
     docs = existing_docs(root)
     project_kind = "Empty starter repository" if is_empty else "Existing project"
     purpose_text = purpose.strip() if purpose and purpose.strip() else (
@@ -243,12 +228,17 @@ def make_block(
         f"- State: {project_kind}",
         f"- Stack: {', '.join(stacks)}",
         f"- Package manager: {manager or 'Not detected'}",
-        f"- Git: {git_summary(root, managed_name)}",
     ]
     if docs:
         lines.append(f"- Read when relevant: {', '.join(f'`{item}`' for item in docs)}")
 
     lines.extend([
+        "",
+        "### Working contract",
+        "- Treat the user's current request as the task and carry it through implementation, relevant verification, and a completion report.",
+        "- Infer routine details from the repository and conversation, make reasonable reversible decisions, and keep working. Ask only when a missing decision could materially change the outcome.",
+        "- Before asking for clarification or approval, finish the authorized read-only, reversible, and local work that makes the remaining decision concrete and reviewable.",
+        "- Do not stop at a plan or partial implementation while safe in-scope work remains.",
         "",
         "### Guardrails",
         "- Preserve existing files, local conventions, and user changes; stay within the requested scope.",
@@ -262,6 +252,7 @@ def make_block(
     if commands:
         lines.append("- Run the applicable project checks:")
         lines.extend(f"  - `{command}` ({label})" for label, command in commands)
+        lines.append("- A check is complete only when it exits successfully. If it cannot run, report the concrete blocker and do not describe it as passing.")
     else:
         lines.append("- No project validation command is declared yet; add one only when the project has a real toolchain or runnable check.")
 
@@ -311,9 +302,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--purpose", help="Stable product purpose to record")
     parser.add_argument("--guardrail", action="append", default=[], help="Additional durable guardrail; repeatable")
     parser.add_argument("--done", action="append", default=[], help="Additional durable completion criterion; repeatable")
+    parser.add_argument(
+        "--check-command",
+        action="append",
+        default=[],
+        help="Exact safe local validation command established by project files or the user; repeatable",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print the proposed managed block without writing")
     parser.add_argument("--check", action="store_true", help="Exit 0 when AGENTS.md is current, 1 when it would change")
     return parser.parse_args()
+
+
+def validate_text_inputs(args: argparse.Namespace) -> None:
+    values = [args.purpose] if args.purpose is not None else []
+    values.extend(args.guardrail)
+    values.extend(args.done)
+    values.extend(args.check_command)
+    for value in values:
+        if not value.strip():
+            raise HarnessError("purpose, guardrails, completion criteria, and check commands must not be empty")
+        if "\n" in value or "\r" in value:
+            raise HarnessError("purpose, guardrails, completion criteria, and check commands must be single-line values")
+        if START in value or END in value:
+            raise HarnessError("WOMC marker text is not allowed in generated values")
 
 
 def main() -> int:
@@ -323,11 +334,12 @@ def main() -> int:
         print(f"WOMC error: project is not a directory: {root}", file=sys.stderr)
         return 2
     try:
+        validate_text_inputs(args)
         override = root / "AGENTS.override.md"
         override_text = read_utf8(override) if override.is_file() else ""
         target = override if override_text.strip() else root / "AGENTS.md"
         existing = override_text if target == override else (read_utf8(target) if target.exists() else "")
-        block = make_block(root, args.purpose, args.guardrail, args.done, target.name)
+        block = make_block(root, args.purpose, args.guardrail, args.done, args.check_command)
         updated = merge(existing, block)
     except (OSError, HarnessError) as exc:
         print(f"WOMC error: {exc}", file=sys.stderr)
