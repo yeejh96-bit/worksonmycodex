@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "works-on-my-codex-statusline" / "scripts" / "configure_statusline.py"
 HOOKS = ROOT / "hooks" / "hooks.json"
-EXPECTED = ["model", "project-name", "context-used", "five-hour-limit", "weekly-limit"]
+EXPECTED = ["model-with-reasoning", "weekly-limit", "context-remaining", "project-name"]
 
 
 def run(config: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -67,7 +67,7 @@ class StatusLineTest(unittest.TestCase):
         self.assertEqual(second.stdout, "")
 
     def test_once_state_does_not_overwrite_later_user_customization(self) -> None:
-        state = Path(self.temp.name) / "plugin-data" / "statusline-v1.applied"
+        state = Path(self.temp.name) / "plugin-data" / "statusline-v2.applied"
         first = run(self.config, "--apply", "--quiet", "--once-state", str(state))
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertTrue(state.is_file())
@@ -97,7 +97,7 @@ class StatusLineTest(unittest.TestCase):
         self.assertTrue(parsed["features"]["plugins"])
         self.assertNotIn("thread-name", updated)
         self.assertNotIn("current-dir", updated)
-        self.assertNotIn("model-with-reasoning", updated)
+        self.assertIn("model-with-reasoning", updated)
         self.assertIn("# my footer", updated)
 
     def test_ambiguous_multiline_value_is_preserved(self) -> None:
@@ -123,7 +123,7 @@ class StatusLineTest(unittest.TestCase):
         self.assertEqual(command["type"], "command")
         self.assertIn("$PLUGIN_ROOT/skills/works-on-my-codex-statusline", command["command"])
         self.assertIn("--apply --quiet", command["command"])
-        self.assertIn("$PLUGIN_DATA/statusline-v1.applied", command["command"])
+        self.assertIn("$PLUGIN_DATA/statusline-v2.applied", command["command"])
         self.assertIn("%PLUGIN_ROOT%", command["commandWindows"])
 
 

@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$PLUGIN_ROOT/skills/works-on-my-codex-statusline/scripts/configure_statusline.py\" --apply --quiet --once-state \"$PLUGIN_DATA/statusline-v1.applied\"",
-            "commandWindows": "python \"%PLUGIN_ROOT%\\skills\\works-on-my-codex-statusline\\scripts\\configure_statusline.py\" --apply --quiet --once-state \"%PLUGIN_DATA%\\statusline-v1.applied\""
+            "command": "python3 \"$PLUGIN_ROOT/skills/works-on-my-codex-statusline/scripts/configure_statusline.py\" --apply --quiet --once-state \"$PLUGIN_DATA/statusline-v2.applied\"",
+            "commandWindows": "python \"%PLUGIN_ROOT%\\skills\\works-on-my-codex-statusline\\scripts\\configure_statusline.py\" --apply --quiet --once-state \"%PLUGIN_DATA%\\statusline-v2.applied\""
           }
         ]
       }

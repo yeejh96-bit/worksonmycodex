@@ -12,11 +12,10 @@ import tomllib
 from pathlib import Path
 
 ITEMS = [
-    "model",
-    "project-name",
-    "context-used",
-    "five-hour-limit",
+    "model-with-reasoning",
     "weekly-limit",
+    "context-remaining",
+    "project-name",
 ]
 SETTING = "status_line = [" + ", ".join(f'"{item}"' for item in ITEMS) + "]"
 TABLE_RE = re.compile(r"^\s*\[([^]]+)]\s*(?:#.*)?$")

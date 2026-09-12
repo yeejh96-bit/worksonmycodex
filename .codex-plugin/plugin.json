@@ -1,7 +1,7 @@
 {
   "name": "works-on-my-codex",
-  "version": "0.3.0",
-  "description": "Set up a thin Codex project harness with a compact default TUI status line.",
+  "version": "0.3.0+codex.20260912235604",
+  "description": "Set up a thin Codex project harness with a native-order TUI status line.",
   "author": {
     "name": "Works on My Codex contributors"
   },
@@ -9,13 +9,15 @@
   "interface": {
     "displayName": "Works on My Codex",
     "shortDescription": "Set up a thin, project-specific Codex harness.",
-    "longDescription": "WOMC creates a thin project harness and, after hook trust, configures a compact Codex footer with the model, project, context usage, and account limits.",
+    "longDescription": "WOMC creates a thin project harness and, after hook trust, configures the Codex footer with model and reasoning, permission mode, weekly remaining, context remaining, and project.",
     "developerName": "Works on My Codex contributors",
     "category": "Productivity",
-    "capabilities": ["Write"],
+    "capabilities": [
+      "Write"
+    ],
     "defaultPrompt": [
       "Set up a Works on My Codex harness in this project.",
-      "Configure the WOMC status line with model, project, context, and usage limits."
+      "Configure the WOMC status line with model and reasoning, permission mode, weekly remaining, context remaining, and project."
     ]
   }
 }

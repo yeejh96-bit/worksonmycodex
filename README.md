@@ -4,7 +4,7 @@ Works on My Codex (WOMC) is a Codex plugin for adding a thin, project-specific h
 
 The task and its one-off acceptance criteria stay in the conversation. WOMC leaves implementation choices to Codex and does not turn every request into permanent process documentation or force a framework or browser dependency.
 
-WOMC also includes a compact default Codex status line: model, project folder, context-window usage, five-hour limit, and weekly limit. The shorter model and project fields leave enough room for the usage fields to remain visible while typing at ordinary terminal widths.
+WOMC also includes a default Codex status line matching the native footer order: model with reasoning effort, permission mode, weekly remaining, context remaining, and project folder. Codex inserts the permission mode automatically; WOMC selects the other four native items.
 
 ## Install
 
@@ -35,7 +35,7 @@ Ask Codex: `Use $works-on-my-codex to set up WOMC in this project.` Add the prod
 
 The trusted plugin hook configures the lower TUI status line once for all projects. To preview, repair, or apply it manually, ask: `Use $works-on-my-codex-statusline to configure the WOMC status line.` You can also make the same selection with `/statusline`.
 
-Codex renders `context-used` as the percentage of the current context window already used. The native five-hour and weekly items are currently percentages remaining, and the public status-line configuration does not support custom labels or converting them to percentages used. WOMC therefore does not falsely label a remaining value as used. Codex also omits an account-limit item when that window is unavailable.
+Codex renders `weekly-limit` and `context-remaining` as percentages remaining. The permission mode, such as `Full Access`, is shown automatically and is not a selectable `tui.status_line` item. Codex omits the weekly item when that account window is unavailable.
 
 Empty-project example:
 
