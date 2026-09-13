@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,8 @@ PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
     "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
 )
+PLUGIN_VERSION = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+VERSION_MARKER = f"<!-- womc:version={PLUGIN_VERSION} -->"
 
 
 def run(project: Path) -> subprocess.CompletedProcess[str]:
@@ -55,7 +58,7 @@ class WomcCheckTest(unittest.TestCase):
         agents = self.project / "AGENTS.md"
         agents.write_text(
             agents.read_text(encoding="utf-8").replace(
-                "<!-- womc:skeleton-version=1.1.0 -->",
+                VERSION_MARKER,
                 "<!-- womc:skeleton-version=1.0.0 -->",
             ),
             encoding="utf-8",
@@ -66,21 +69,38 @@ class WomcCheckTest(unittest.TestCase):
         self.assertIn("갱신", result.stdout)
 
     def test_current_or_newer_harness_is_silent(self) -> None:
-        for version in ("1.1.0", "1.2.0"):
+        for version in (PLUGIN_VERSION, "1.2.0+codex.20990101000000"):
             with self.subTest(version=version):
                 setup(self.project)
                 agents = self.project / "AGENTS.md"
                 content = agents.read_text(encoding="utf-8")
                 agents.write_text(
                     content.replace(
-                        "<!-- womc:skeleton-version=1.1.0 -->",
-                        f"<!-- womc:skeleton-version={version} -->",
+                        VERSION_MARKER,
+                        f"<!-- womc:version={version} -->",
                     ),
                     encoding="utf-8",
                 )
                 result = run(self.project)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
+
+    def test_plugin_cachebuster_update_requests_harness_refresh(self) -> None:
+        setup(self.project)
+        agents = self.project / "AGENTS.md"
+        agents.write_text(
+            agents.read_text(encoding="utf-8").replace(
+                VERSION_MARKER,
+                "<!-- womc:version=1.1.0+codex.20260101000000 -->",
+            ),
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("설치된 WOMC", result.stdout)
+        self.assertIn("갱신", result.stdout)
 
     def test_project_structure_drift_requests_automatic_refresh(self) -> None:
         setup(self.project)
@@ -127,7 +147,7 @@ class WomcCheckTest(unittest.TestCase):
         self.assertIn("충돌", result.stdout)
 
     def test_incomplete_current_harness_requests_refresh(self) -> None:
-        (self.project / "AGENTS.md").write_text("<!-- womc:skeleton-version=1.1.0 -->\n", encoding="utf-8")
+        (self.project / "AGENTS.md").write_text(f"{VERSION_MARKER}\n", encoding="utf-8")
         result = run(self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("불완전", result.stdout)

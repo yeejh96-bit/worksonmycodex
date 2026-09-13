@@ -9,13 +9,41 @@ import subprocess
 import sys
 from pathlib import Path
 
-from setup_harness import END, PHILOSOPHY, SKELETON_VERSION, START
+from setup_harness import END, PHILOSOPHY, START, WOMC_VERSION
 
-MARKER = re.compile(r"womc:skeleton-version=(\d+\.\d+\.\d+)")
+MARKER = re.compile(r"womc:(?:version|skeleton-version)=([0-9A-Za-z][0-9A-Za-z.+-]*)")
 
 
 def version_tuple(value: str) -> tuple[int, int, int]:
-    return tuple(int(part) for part in value.split("."))  # type: ignore[return-value]
+    base = value.split("+", 1)[0].split("-", 1)[0]
+    parts = base.split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        return (0, 0, 0)
+    return tuple(int(part) for part in parts)  # type: ignore[return-value]
+
+
+def codex_cachebuster(value: str) -> str | None:
+    if "+codex." not in value:
+        return None
+    return value.split("+codex.", 1)[1]
+
+
+def project_version_is_older(project_version: str, plugin_version: str) -> bool:
+    project_base = version_tuple(project_version)
+    plugin_base = version_tuple(plugin_version)
+    if project_base != plugin_base:
+        return project_base < plugin_base
+    if project_version == plugin_version:
+        return False
+    project_build = codex_cachebuster(project_version)
+    plugin_build = codex_cachebuster(plugin_version)
+    if plugin_build is None:
+        return False
+    if project_build is None:
+        return True
+    if project_build.isdigit() and plugin_build.isdigit():
+        return project_build < plugin_build
+    return project_version != plugin_version
 
 
 def generated_harness_would_change(project: Path) -> bool:
@@ -60,14 +88,13 @@ def message(project: Path) -> str | None:
             "[WOMC] 루트 AGENTS.md의 WOMC 골격이 불완전하다. 사용자의 첫 요청을 처리하기 전에 "
             "$works-on-my-codex 스킬을 읽고 마커 충돌을 확인한 뒤 갱신한다."
         )
-    found_version = version_tuple(found.group(1))
-    current_version = version_tuple(SKELETON_VERSION)
-    if found_version < current_version:
+    found_version = found.group(1)
+    if project_version_is_older(found_version, WOMC_VERSION):
         return (
-            f"[WOMC] 프로젝트 골격은 v{found.group(1)}이고 플러그인 골격은 v{SKELETON_VERSION}이다. "
+            f"[WOMC] 프로젝트 WOMC는 v{found_version}이고 설치된 WOMC는 v{WOMC_VERSION}이다. "
             "사용자의 첫 요청을 처리하기 전에 $works-on-my-codex 스킬을 읽고 루트 AGENTS.md를 갱신한다."
         )
-    if found_version == current_version and generated_harness_would_change(project):
+    if found_version == WOMC_VERSION and generated_harness_would_change(project):
         return (
             "[WOMC] 프로젝트의 시작 문서·로컬 스킬·워크스페이스 또는 검증 명령이 "
             "루트 AGENTS.md의 WOMC 하네스와 달라졌다. 사용자에게 갱신 여부를 되묻지 말고, "

@@ -1,6 +1,6 @@
 {
   "name": "works-on-my-codex",
-  "version": "0.3.0+codex.20260913023138",
+  "version": "1.1.0+codex.20260913024229",
   "description": "Keep a thin Codex project harness current and configure a native-order TUI status line.",
   "author": {
     "name": "Works on My Codex contributors"

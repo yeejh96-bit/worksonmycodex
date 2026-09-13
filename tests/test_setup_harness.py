@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -17,7 +18,8 @@ PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
     "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
 )
-VERSION_MARKER = "<!-- womc:skeleton-version=1.1.0 -->"
+PLUGIN_VERSION = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+VERSION_MARKER = f"<!-- womc:version={PLUGIN_VERSION} -->"
 
 
 def run(project: Path, *args: str) -> subprocess.CompletedProcess[str]:

@@ -16,8 +16,20 @@ from typing import Iterable
 
 START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
-SKELETON_VERSION = "1.1.0"
-VERSION_MARKER = f"<!-- womc:skeleton-version={SKELETON_VERSION} -->"
+
+
+def plugin_version() -> str:
+    """Read the single WOMC version from the plugin manifest."""
+    manifest = Path(__file__).resolve().parents[3] / ".codex-plugin" / "plugin.json"
+    try:
+        value = json.loads(manifest.read_text(encoding="utf-8")).get("version")
+    except (OSError, UnicodeError, ValueError, AttributeError):
+        value = None
+    return value if isinstance(value, str) and value.strip() else "1.1.0"
+
+
+WOMC_VERSION = plugin_version()
+VERSION_MARKER = f"<!-- womc:version={WOMC_VERSION} -->"
 MANUAL_ROUTE_MARKER = "<!-- womc:manual-route -->"
 CONTEXT_SNAPSHOT_PREFIX = "<!-- womc:context-snapshot=sha256:"
 MAINTENANCE_ROUTE = (
@@ -476,7 +488,7 @@ def merge(existing: str, block: str, replace_unmanaged: bool = False) -> str:
         remaining = pattern.sub("", existing, count=1)
         # Migrate the philosophy line from older/current blocks while keeping WOMC content at the top.
         remaining = re.sub(r"^> \*\*WOMC (?:philosophy|철학):.*\r?\n?", "", remaining, count=1)
-        remaining = re.sub(r"^<!-- womc:skeleton-version=[^>]+ -->\r?\n?", "", remaining, count=1)
+        remaining = re.sub(r"^<!-- womc:(?:version|skeleton-version)=[^>]+ -->\r?\n?", "", remaining, count=1)
         remaining = remaining.lstrip("\r\n")
         return rendered if replace_unmanaged or not remaining else rendered + newline + remaining
     if not existing:

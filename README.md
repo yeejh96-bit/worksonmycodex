@@ -27,7 +27,7 @@ codex plugin marketplace add yeejh96-bit/worksonmycodex --ref main
 codex plugin add works-on-my-codex@works-on-my-codex
 ```
 
-마켓플레이스 등록과 플러그인 설치는 Codex 설정을 변경한다. 설치 후 새 세션을 열고 `/hooks`에서 WOMC `SessionStart` 훅을 검토해 신뢰한다. 다음 세션부터 훅이 상태 표시줄을 한 번 설정하고, 현재 프로젝트의 WOMC 하네스 유무·버전과 프로젝트 드리프트를 검사한다. 시작 문서와 매니페스트의 내용, 로컬 스킬, 워크스페이스 또는 검증 명령이 달라지면 모델이 첫 요청 전에 의미를 검토하고 하네스를 갱신한다. 일반 소스 코드 변경은 하네스 갱신을 일으키지 않는다. 훅은 프로젝트 파일을 직접 수정하지 않고 필요한 설정·갱신만 모델에게 알린다.
+마켓플레이스 등록과 플러그인 설치는 Codex 설정을 변경한다. 설치 후 새 세션을 열고 `/hooks`에서 WOMC `SessionStart` 훅을 검토해 신뢰한다. 다음 세션부터 훅이 상태 표시줄을 한 번 설정하고, 현재 프로젝트의 WOMC 하네스 유무·버전과 프로젝트 드리프트를 검사한다. 플러그인과 `AGENTS.md` 하네스는 하나의 WOMC 버전을 사용하며, 플러그인이 갱신되면 다음 세션에서 하네스도 같은 버전으로 갱신한다. 시작 문서와 매니페스트의 내용, 로컬 스킬, 워크스페이스 또는 검증 명령이 달라지면 모델이 첫 요청 전에 의미를 검토하고 하네스를 갱신한다. 일반 소스 코드 변경은 하네스 갱신을 일으키지 않는다. 훅은 프로젝트 파일을 직접 수정하지 않고 필요한 설정·갱신만 모델에게 알린다.
 
 ## 사용
 
@@ -71,7 +71,7 @@ python3 skills/works-on-my-codex/scripts/setup_harness.py \
 
 ## 제거
 
-루트 `AGENTS.md`에서 WOMC 철학 문구, `womc:skeleton-version` 표식, 완전한 WOMC 관리 영역을 함께 제거한다. 주변의 사용자 작성 내용은 보존한다. 플러그인은 명령의 범위를 검토한 뒤 `codex plugin remove works-on-my-codex@works-on-my-codex`로 제거한다.
+루트 `AGENTS.md`에서 WOMC 철학 문구, `womc:version` 표식, 완전한 WOMC 관리 영역을 함께 제거한다. 주변의 사용자 작성 내용은 보존한다. 플러그인은 명령의 범위를 검토한 뒤 `codex plugin remove works-on-my-codex@works-on-my-codex`로 제거한다.
 
 ## 검증
 
