@@ -5,15 +5,30 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
+import sys
 from pathlib import Path
 
-from setup_harness import PHILOSOPHY, SKELETON_VERSION, START
+from setup_harness import END, PHILOSOPHY, SKELETON_VERSION, START
 
 MARKER = re.compile(r"womc:skeleton-version=(\d+\.\d+\.\d+)")
 
 
 def version_tuple(value: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in value.split("."))  # type: ignore[return-value]
+
+
+def generated_harness_would_change(project: Path) -> bool:
+    """Compare detected routes and checks without writing project files."""
+    setup = Path(__file__).with_name("setup_harness.py")
+    result = subprocess.run(
+        [sys.executable, str(setup), "--project", str(project), "--check"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+        timeout=10,
+    )
+    return result.returncode == 1
 
 
 def message(project: Path) -> str | None:
@@ -36,15 +51,27 @@ def message(project: Path) -> str | None:
             "[WOMC] 이 프로젝트에 WOMC 하네스가 없다. 사용자의 첫 요청을 처리하기 전에 "
             "$works-on-my-codex 스킬을 읽고 루트 AGENTS.md를 설정한다. 사용자에게 설치 여부를 되묻지 않는다."
         )
-    if START not in content or not content.startswith(PHILOSOPHY):
+    if (
+        content.count(START) != 1
+        or content.count(END) != 1
+        or not content.startswith(PHILOSOPHY)
+    ):
         return (
             "[WOMC] 루트 AGENTS.md의 WOMC 골격이 불완전하다. 사용자의 첫 요청을 처리하기 전에 "
             "$works-on-my-codex 스킬을 읽고 마커 충돌을 확인한 뒤 갱신한다."
         )
-    if version_tuple(found.group(1)) < version_tuple(SKELETON_VERSION):
+    found_version = version_tuple(found.group(1))
+    current_version = version_tuple(SKELETON_VERSION)
+    if found_version < current_version:
         return (
             f"[WOMC] 프로젝트 골격은 v{found.group(1)}이고 플러그인 골격은 v{SKELETON_VERSION}이다. "
             "사용자의 첫 요청을 처리하기 전에 $works-on-my-codex 스킬을 읽고 루트 AGENTS.md를 갱신한다."
+        )
+    if found_version == current_version and generated_harness_would_change(project):
+        return (
+            "[WOMC] 프로젝트의 시작 문서·로컬 스킬·워크스페이스 또는 검증 명령이 "
+            "루트 AGENTS.md의 WOMC 하네스와 달라졌다. 사용자에게 갱신 여부를 되묻지 말고, "
+            "첫 요청을 처리하기 전에 $works-on-my-codex 스킬로 하네스를 갱신한다."
         )
     return None
 

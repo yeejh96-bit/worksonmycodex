@@ -1,6 +1,6 @@
 interface:
   display_name: "Works on My Codex"
-  short_description: "Build a thin, project-specific Codex harness"
-  default_prompt: "Use $works-on-my-codex to set up a thin Codex harness in this project."
+  short_description: "Keep a thin Codex project briefing current"
+  default_prompt: "Use $works-on-my-codex to set up or refresh this project's Codex briefing and contextual reading routes."
 policy:
   allow_implicit_invocation: true

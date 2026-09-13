@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -15,16 +16,31 @@ from typing import Iterable
 
 START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
-SKELETON_VERSION = "1.0.0"
+SKELETON_VERSION = "1.1.0"
 VERSION_MARKER = f"<!-- womc:skeleton-version={SKELETON_VERSION} -->"
 MANUAL_ROUTE_MARKER = "<!-- womc:manual-route -->"
+CONTEXT_SNAPSHOT_PREFIX = "<!-- womc:context-snapshot=sha256:"
+MAINTENANCE_ROUTE = (
+    "- 프로젝트 목적·지속 제약·완료 기준·시작 문서·로컬 스킬·워크스페이스·검증 명령을 바꾼 작업은 "
+    "끝내기 전에 `$works-on-my-codex`로 루트 `AGENTS.md` 하네스를 갱신한다."
+)
+AUTONOMY_PRINCIPLES = (
+    "목표와 범위가 충분히 분명하면 조사나 계획에서 멈추지 않고 구현·검증·결과 보고까지 진행한다.",
+    "결과를 크게 바꾸지 않는 세부 사항은 프로젝트 관례와 증거를 바탕으로 정하고, 되돌리기 어려운 결정이나 목표를 바꾸는 선택만 사용자에게 묻는다.",
+    "작업 중 이후 결과를 바꾸는 프로젝트 사실·제약·완료 기준·검증 방법을 알게 되면 현재 작업을 끝내기 전에 하네스나 연결된 문서·스킬에 반영한다.",
+    "현재 작업의 진행 기록과 일회성 계획은 하네스에 쌓지 않는다.",
+)
 PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
-    "AGENTS.md에는 변하지 않는 제품 원칙, 보안·승인 경계, 작업별 문서·스킬 경로, 공통 검증 방법만 둔다."
+    "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
 )
 DEFAULT_APPROVAL_BOUNDARIES = (
     "비밀 정보 열람·노출, 데이터 삭제, 운영 데이터 변경, 실제 결제, 배포, 외부 서비스 변경, 원격 저장소 변경 전에는 명시적 승인을 받는다.",
     "되돌릴 수 있는 일반 프로젝트 수정과 안전한 로컬 검증은 별도 승인 없이 진행할 수 있다.",
+)
+TRANSIENT_DOC_TOKENS = (
+    "/archive/", "changelog", "meeting", "minutes", "implementation-log", "progress", "history", "journal",
+    "변경기록", "회의록", "구현일지", "진행상황", "작업일지",
 )
 
 
@@ -53,6 +69,8 @@ def relative_files(root: Path, patterns: Iterable[str], limit: int = 40) -> list
         for path in sorted(root.glob(pattern)):
             if path.is_file() and not any(part in {".git", "node_modules", "vendor"} for part in path.parts):
                 relative = path.relative_to(root).as_posix()
+                if any(character in relative for character in ("`", "\n", "\r", "<", ">")):
+                    continue
                 if relative not in found:
                     found.append(relative)
                 if len(found) >= limit:
@@ -84,14 +102,10 @@ def existing_docs(root: Path) -> list[str]:
         "api", "integration", "deploy", "release", "runbook",
         "제품", "요구", "아키텍처", "설계", "보안", "인증", "개인정보", "테스트", "기여", "연동", "배포", "릴리스",
     )
-    transient_tokens = (
-        "/archive/", "changelog", "meeting", "minutes", "implementation-log", "progress", "history", "journal",
-        "변경기록", "회의록", "구현일지", "진행상황", "작업일지",
-    )
     discovered = [
         item for item in relative_files(root, ("docs/**/*.md",), limit=60)
         if any(token in item.lower() for token in durable_tokens)
-        and not any(token in item.lower() for token in transient_tokens)
+        and not any(token in item.lower() for token in TRANSIENT_DOC_TOKENS)
     ]
     return list(dict.fromkeys(fixed + discovered))[:24]
 
@@ -106,6 +120,86 @@ def existing_skills(root: Path) -> list[str]:
         ),
         limit=24,
     )
+
+
+def skill_description(root: Path, relative: str) -> str | None:
+    """Read a safe, concise one-line description from SKILL.md frontmatter."""
+    try:
+        content = read_utf8(root / relative)
+    except (OSError, HarnessError):
+        return None
+    if not content.startswith("---"):
+        return None
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return None
+    match = re.search(r"^description:\s*(.+?)\s*$", parts[1], re.MULTILINE)
+    if match is None:
+        return None
+    description = match.group(1).strip().strip("\"'")
+    if (
+        not description
+        or description in {">", ">-", "|", "|-"}
+        or len(description) > 320
+        or any(value in description for value in ("`", "\n", "\r", "<!--", "-->"))
+    ):
+        return None
+    return description
+
+
+def context_snapshot(root: Path) -> str:
+    """Fingerprint durable context candidates so semantic review is requested after changes."""
+    patterns = (
+        "*.md",
+        "*.rst",
+        "*.txt",
+        "docs/**/*.md",
+        ".codex/skills/*/SKILL.md",
+        ".agents/skills/*/SKILL.md",
+        "skills/*/SKILL.md",
+        "package.json",
+        "pyproject.toml",
+        "Cargo.toml",
+        "go.mod",
+        "apps/*/package.json",
+        "apps/*/pyproject.toml",
+        "apps/*/Cargo.toml",
+        "apps/*/go.mod",
+        "packages/*/package.json",
+        "packages/*/pyproject.toml",
+        "packages/*/Cargo.toml",
+        "packages/*/go.mod",
+        "services/*/package.json",
+        "services/*/pyproject.toml",
+        "services/*/Cargo.toml",
+        "services/*/go.mod",
+        "pnpm-workspace.yaml",
+        "turbo.json",
+        "nx.json",
+        "pytest.ini",
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+    )
+    candidates = relative_files(root, patterns, limit=200)
+    selected = [
+        item
+        for item in candidates
+        if item not in {"AGENTS.md", "AGENTS.override.md"}
+        and not any(token in f"/{item.lower()}" for token in TRANSIENT_DOC_TOKENS)
+    ]
+    digest = hashlib.sha256()
+    for relative in selected:
+        path = root / relative
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        try:
+            with path.open("rb") as handle:
+                while chunk := handle.read(65536):
+                    digest.update(chunk)
+        except OSError:
+            continue
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def package_manager(root: Path, fallback: str | None = None) -> str | None:
@@ -281,7 +375,13 @@ def route_lines(root: Path) -> list[str]:
         routes.append(f"- 프로젝트 맥락 또는 동작 변경: {', '.join(f'`{item}`' for item in general)} 문서를 읽는다.")
     for skill in skills:
         name = Path(skill).parent.name
-        routes.append(f"- `{name}` 스킬에 해당하는 작업: `{skill}` 파일을 읽고 따른다.")
+        description = skill_description(root, skill)
+        if description:
+            routes.append(
+                f"- 다음 설명에 해당하는 작업은 `{skill}` 파일을 읽고 `{name}` 스킬을 따른다: {description}"
+            )
+        else:
+            routes.append(f"- `{name}` 스킬에 해당하는 작업: `{skill}` 파일을 읽고 따른다.")
     for area in project_areas(root):
         relative = area.relative_to(root).as_posix()
         manifest = next(
@@ -297,7 +397,9 @@ def bullet_lines(values: Iterable[str]) -> list[str]:
 
 def make_block(
     root: Path,
+    project_summary: str | None,
     principles: list[str],
+    done_conditions: list[str],
     approval_boundaries: list[str],
     manual_routes: list[str],
     check_commands: list[str],
@@ -310,12 +412,23 @@ def make_block(
         PHILOSOPHY,
         VERSION_MARKER,
         START,
+        f"{CONTEXT_SNAPSHOT_PREFIX}{context_snapshot(root)} -->",
         "## WOMC 프로젝트 하네스",
+        "",
+        "### 자율 실행 원칙",
     ]
+    lines.extend(bullet_lines(AUTONOMY_PRINCIPLES))
+
+    if project_summary:
+        lines.extend(["", "### 프로젝트 목적", project_summary])
 
     if principles:
         lines.extend(["", "### 변하지 않는 제품 원칙"])
         lines.extend(bullet_lines(principles))
+
+    if done_conditions:
+        lines.extend(["", "### 지속적인 완료 기준"])
+        lines.extend(bullet_lines(done_conditions))
 
     lines.extend([
         "",
@@ -328,7 +441,7 @@ def make_block(
     manual_route_lines: list[str] = []
     for route in manual_routes:
         manual_route_lines.append(f"- {route.strip()} {MANUAL_ROUTE_MARKER}")
-    routes = manual_route_lines + routes
+    routes = [MAINTENANCE_ROUTE] + manual_route_lines + routes
     if routes:
         lines.extend(["", "### 작업별 문서·스킬 경로"])
         lines.extend(routes)
@@ -390,6 +503,24 @@ def persisted_bullets(existing: str, heading: str) -> list[str]:
     return values
 
 
+def persisted_paragraph(existing: str, heading: str) -> str | None:
+    if existing.count(START) != 1 or existing.count(END) != 1:
+        return None
+    managed = existing.split(START, 1)[1].split(END, 1)[0]
+    lines = managed.splitlines()
+    try:
+        start = lines.index(f"### {heading}") + 1
+    except ValueError:
+        return None
+    values: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("### "):
+            break
+        if line.strip():
+            values.append(line.strip())
+    return " ".join(values) or None
+
+
 def persisted_project_checks(existing: str) -> list[str]:
     if existing.count(START) != 1 or existing.count(END) != 1:
         return []
@@ -424,7 +555,17 @@ def atomic_write(path: Path, content: str) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", default=".", help="Project root (default: current directory)")
+    parser.add_argument(
+        "--project-summary",
+        help="One durable sentence describing what the project is; replaces the stored summary when supplied",
+    )
     parser.add_argument("--principle", action="append", default=[], help="Invariant product principle; repeatable")
+    parser.add_argument(
+        "--done-condition",
+        action="append",
+        default=[],
+        help="Durable project-level completion criterion; repeatable",
+    )
     parser.add_argument(
         "--approval-boundary",
         action="append",
@@ -432,6 +573,11 @@ def parse_args() -> argparse.Namespace:
         help="Additional durable security or approval boundary; repeatable",
     )
     parser.add_argument("--replace-principles", action="store_true", help="Replace stored principles instead of merging")
+    parser.add_argument(
+        "--replace-done-conditions",
+        action="store_true",
+        help="Replace stored completion criteria instead of merging",
+    )
     parser.add_argument("--replace-approval-boundaries", action="store_true", help="Replace stored custom approval boundaries instead of merging")
     parser.add_argument("--replace-check-commands", action="store_true", help="Replace stored explicit check commands instead of merging")
     parser.add_argument("--route", action="append", default=[], help="Durable task-to-document or skill route; repeatable")
@@ -454,15 +600,18 @@ def parse_args() -> argparse.Namespace:
 
 def validate_text_inputs(args: argparse.Namespace) -> None:
     values = list(args.principle)
+    if args.project_summary is not None:
+        values.append(args.project_summary)
+    values.extend(args.done_condition)
     values.extend(args.approval_boundary)
     values.extend(args.route)
     values.extend(args.check_command)
     for value in values:
         if not value.strip():
-            raise HarnessError("principles, approval boundaries, routes, and check commands must not be empty")
+            raise HarnessError("generated project guidance values must not be empty")
         if "\n" in value or "\r" in value:
-            raise HarnessError("principles, approval boundaries, routes, and check commands must be single-line values")
-        if any(marker in value for marker in (START, END, VERSION_MARKER, MANUAL_ROUTE_MARKER)):
+            raise HarnessError("generated project guidance values must be single-line")
+        if any(marker in value for marker in (START, END, VERSION_MARKER, MANUAL_ROUTE_MARKER, CONTEXT_SNAPSHOT_PREFIX)):
             raise HarnessError("WOMC marker text is not allowed in generated values")
 
 
@@ -482,7 +631,12 @@ def main() -> int:
             )
         target = root / "AGENTS.md"
         existing = read_utf8(target) if target.exists() else ""
+        old_summary = persisted_paragraph(existing, "프로젝트 목적") or persisted_paragraph(existing, "Project purpose")
         old_principles = persisted_bullets(existing, "변하지 않는 제품 원칙") or persisted_bullets(existing, "Invariant product principles")
+        old_done_conditions = (
+            persisted_bullets(existing, "지속적인 완료 기준")
+            or persisted_bullets(existing, "Durable completion criteria")
+        )
         persisted_boundaries = [
             value
             for value in (
@@ -493,7 +647,13 @@ def main() -> int:
         ]
         old_checks = persisted_project_checks(existing)
         old_routes = persisted_manual_routes(existing)
+        project_summary = args.project_summary if args.project_summary is not None else old_summary
         principles = list(dict.fromkeys(args.principle if args.replace_principles else old_principles + args.principle))
+        done_conditions = list(dict.fromkeys(
+            args.done_condition
+            if args.replace_done_conditions
+            else old_done_conditions + args.done_condition
+        ))
         approval_boundaries = list(dict.fromkeys(
             args.approval_boundary
             if args.replace_approval_boundaries
@@ -505,7 +665,15 @@ def main() -> int:
         manual_routes = list(dict.fromkeys(
             args.route if args.replace_routes else old_routes + args.route
         ))
-        block = make_block(root, principles, approval_boundaries, manual_routes, check_commands)
+        block = make_block(
+            root,
+            project_summary,
+            principles,
+            done_conditions,
+            approval_boundaries,
+            manual_routes,
+            check_commands,
+        )
         updated = merge(existing, block, args.replace_unmanaged)
     except (OSError, HarnessError) as exc:
         print(f"WOMC error: {exc}", file=sys.stderr)

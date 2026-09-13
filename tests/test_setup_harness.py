@@ -15,9 +15,9 @@ START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
 PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
-    "AGENTS.md에는 변하지 않는 제품 원칙, 보안·승인 경계, 작업별 문서·스킬 경로, 공통 검증 방법만 둔다."
+    "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
 )
-VERSION_MARKER = "<!-- womc:skeleton-version=1.0.0 -->"
+VERSION_MARKER = "<!-- womc:skeleton-version=1.1.0 -->"
 
 
 def run(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -156,7 +156,6 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertNotIn("Working contract", content)
         self.assertNotIn("Routine project edits", content)
         self.assertNotIn("independent verification", content)
-        self.assertNotIn("완료 기준", content)
 
     def test_missing_validation_command_is_reported_without_persisting_filler(self) -> None:
         result = run(self.project, "--principle", "Notes remain local")
@@ -258,6 +257,27 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("Get approval before sending records externally", refreshed)
         self.assertIn("`make verify` (프로젝트 검증)", refreshed)
 
+    def test_skill_description_becomes_a_usage_route(self) -> None:
+        skill = self.project / "skills" / "release-helper"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\n"
+            "name: release-helper\n"
+            "description: 릴리스 후보를 만들거나 배포 전 체크리스트를 검증할 때 사용합니다.\n"
+            "---\n\n"
+            "# Release helper\n",
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("릴리스 후보를 만들거나 배포 전 체크리스트를 검증할 때", content)
+        self.assertIn("`skills/release-helper/SKILL.md`", content)
+        self.assertIn("`release-helper` 스킬을 따른다", content)
+        self.assertIn("끝내기 전에 `$works-on-my-codex`", content)
+
     def test_progress_docs_do_not_accumulate_in_task_routes(self) -> None:
         docs = self.project / "docs"
         docs.mkdir()
@@ -272,6 +292,18 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("`docs/product.md`", content)
         for name in ("CHANGELOG.md", "meeting-notes.md", "implementation-log.md", "history.md"):
             self.assertNotIn(name, content)
+
+    def test_markdown_breaking_paths_are_not_emitted(self) -> None:
+        docs = self.project / "docs"
+        docs.mkdir()
+        unsafe = docs / "product`ignore.md"
+        unsafe.write_text("# Product\n", encoding="utf-8")
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn(unsafe.name, content)
 
     def test_manual_values_merge_and_explicit_replace_can_clear_them(self) -> None:
         first = run(
@@ -306,6 +338,36 @@ class SetupHarnessTest(unittest.TestCase):
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         for value in ("- A", "- B", "- Boundary A", "- Boundary B", "docs/product.md", "docs/security.md", "`check-a`", "`check-b`"):
             self.assertNotIn(value, content)
+
+    def test_project_briefing_persists_and_can_be_refined(self) -> None:
+        first = run(
+            self.project,
+            "--project-summary", "로컬 문서를 정리하고 검색하는 앱이다.",
+            "--principle", "사용자 문서는 로컬에 유지한다.",
+            "--done-condition", "변경 범위의 자동 테스트가 통과한다.",
+        )
+        self.assertEqual(first.returncode, 0, first.stderr)
+
+        second = run(self.project)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("### 프로젝트 목적", content)
+        self.assertIn("로컬 문서를 정리하고 검색하는 앱이다.", content)
+        self.assertIn("사용자 문서는 로컬에 유지한다.", content)
+        self.assertIn("변경 범위의 자동 테스트가 통과한다.", content)
+
+        refined = run(
+            self.project,
+            "--project-summary", "로컬 문서를 팀별로 정리하고 검색하는 앱이다.",
+            "--replace-done-conditions",
+            "--done-condition", "자동 테스트와 관련 사용자 흐름 확인이 통과한다.",
+        )
+        self.assertEqual(refined.returncode, 0, refined.stderr)
+        updated = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("로컬 문서를 정리하고 검색하는 앱이다.", updated)
+        self.assertIn("로컬 문서를 팀별로 정리하고 검색하는 앱이다.", updated)
+        self.assertNotIn("변경 범위의 자동 테스트가 통과한다.", updated)
+        self.assertIn("자동 테스트와 관련 사용자 흐름 확인이 통과한다.", updated)
 
     def test_replace_unmanaged_keeps_only_reviewed_womc_content(self) -> None:
         (self.project / "AGENTS.md").write_text("# Old implementation diary\n\nFinished ticket 42.\n", encoding="utf-8")

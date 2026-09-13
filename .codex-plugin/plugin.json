@@ -1,15 +1,15 @@
 {
   "name": "works-on-my-codex",
-  "version": "0.3.0+codex.20260913020436",
-  "description": "Set up a thin Codex project harness with a native-order TUI status line.",
+  "version": "0.3.0+codex.20260913023138",
+  "description": "Keep a thin Codex project harness current and configure a native-order TUI status line.",
   "author": {
     "name": "Works on My Codex contributors"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "WOMC \u2014 Works on My Codex",
-    "shortDescription": "Use WOMC to set up a thin, project-specific Codex harness.",
-    "longDescription": "WOMC creates a thin project harness and, after hook trust, configures the Codex footer with model and reasoning, permission mode, weekly remaining, context remaining, and project.",
+    "shortDescription": "Keep a thin, project-specific Codex harness current.",
+    "longDescription": "WOMC creates and refreshes a thin project harness as durable project context, local skills, workspaces, and validation commands change. It routes required reading before implementation or a matching task. After hook trust, it also configures the Codex footer with model and reasoning, permission mode, weekly remaining, context remaining, and project.",
     "developerName": "Works on My Codex contributors",
     "category": "Productivity",
     "capabilities": [
