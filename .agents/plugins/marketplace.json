@@ -1,7 +1,7 @@
 {
   "name": "works-on-my-codex",
   "interface": {
-    "displayName": "Works on My Codex"
+    "displayName": "WOMC — Works on My Codex"
   },
   "plugins": [
     {

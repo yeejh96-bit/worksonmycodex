@@ -15,12 +15,19 @@ Works on My Codex(WOMC)는 빈 폴더나 기존 소프트웨어 프로젝트에 
 
 ## 설치
 
+Git 마켓플레이스를 한 번 등록한다.
+
 ```sh
 codex plugin marketplace add yeejh96-bit/worksonmycodex --ref main
+```
+
+그다음 Codex에서 `/plugins`를 열고 `WOMC` 또는 `Works on My Codex`를 검색해 설치한다. CLI에서 바로 설치하려면 다음 명령을 사용한다.
+
+```sh
 codex plugin add works-on-my-codex@works-on-my-codex
 ```
 
-위 명령은 Codex 플러그인 설정을 변경한다. 설치 후 첫 세션에서 `/hooks`로 WOMC `SessionStart` 훅을 검토하고 신뢰한다. 다음 세션부터 훅이 상태 표시줄을 한 번 설정하고, 현재 프로젝트의 WOMC 하네스 유무와 버전을 검사한다. 훅은 프로젝트 파일을 직접 수정하지 않고 필요한 설정·갱신만 모델에게 알린다.
+마켓플레이스 등록과 플러그인 설치는 Codex 설정을 변경한다. 설치 후 새 세션을 열고 `/hooks`에서 WOMC `SessionStart` 훅을 검토해 신뢰한다. 다음 세션부터 훅이 상태 표시줄을 한 번 설정하고, 현재 프로젝트의 WOMC 하네스 유무와 버전을 검사한다. 훅은 프로젝트 파일을 직접 수정하지 않고 필요한 설정·갱신만 모델에게 알린다.
 
 ## 사용
 
