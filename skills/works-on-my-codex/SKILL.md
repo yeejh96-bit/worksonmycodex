@@ -1,35 +1,53 @@
 ---
 name: works-on-my-codex
-description: Set up or refresh a thin Codex project harness in a blank or existing software project. Use when a user asks to apply Works on My Codex, WOMC, create project AGENTS.md guidance, or connect project rules and completion criteria to real validation commands. Do not use for ordinary feature implementation when harness setup was not requested.
+description: 빈 프로젝트나 기존 프로젝트의 루트 AGENTS.md에 얇은 Codex 하네스를 설정하거나 최신 WOMC 골격으로 갱신합니다. 사용자가 Works on My Codex, WOMC, AGENTS.md 하네스, 프로젝트 지침과 공통 검증 연결을 요청할 때 사용합니다. 하네스 설정을 요청하지 않은 일반 기능 구현에는 사용하지 않습니다.
 ---
 
 # Works on My Codex
 
-Create a short, project-specific Codex harness. Keep the changing task and its one-off acceptance criteria in the conversation; persist only durable project context, project-specific guardrails, and reusable validation commands.
+루트 `AGENTS.md` 첫 줄에는 다음 철학을 둔다. 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. `AGENTS.md`에는 변하지 않는 제품 원칙, 보안·승인 경계, 작업별 문서·스킬 경로, 공통 검증 방법만 둔다. 구현 세부 사항, 현재 작업, 일회성 인수 조건은 대화나 일반 프로젝트 문서에 둔다.
 
-## Inspect before writing
+세션 시작 훅이 `[WOMC]` 미설치·구버전 안내를 출력하면 사용자에게 설치할지 다시 묻지 말고 이 스킬을 적용합니다. 훅은 파일을 직접 쓰지 않고 필요한 조치만 모델에게 알립니다.
 
-Resolve the requested project root, then inspect its directory layout, manifests, lockfiles, README and contributor docs, existing `AGENTS.md` files, test configuration, runnable scripts, and `git status`. Do not open secret-bearing files such as `.env`, credential stores, or private keys. Distinguish an empty project from an existing one and preserve uncommitted work.
+## 작성 전에 살펴보기
 
-Use the bundled `scripts/setup_harness.py` for the active root instruction file's managed block. Run it first with `--dry-run`. Add `--purpose`, `--guardrail`, or `--done` only for durable project facts the user provided; never pass the current task or one-off acceptance criteria through them. Add each exact safe local validation command established by a manifest, task runner, test configuration, project document, or the user with a separate `--check-command`. Prefer an explicit project command over guessing from a directory name. Resolve the script path relative to this `SKILL.md`; do not assume the target project contains the plugin. The generator updates a non-empty root `AGENTS.override.md` when present because Codex gives it precedence over `AGENTS.md`.
+프로젝트 루트와 `git status`를 확인한 뒤 디렉터리 구조, 매니페스트, 잠금 파일, README·기여·아키텍처·제품·보안 문서, 로컬 `SKILL.md`, 테스트 설정, 실행 스크립트, 기존 `AGENTS.md`를 살펴봅니다. `.env`, 자격 증명 저장소, 개인 키는 열지 않습니다. 빈 프로젝트와 기존 프로젝트를 구분하고 미커밋 작업을 보존합니다.
 
-Review the proposed block against the inspected project. Confirm that its commands cover the repository's real completion path, including scoped commands for affected workspaces when necessary, then run the same command without `--dry-run`. If the script reports a marker conflict, stop and explain it; never repair ambiguous markers by deleting content. Review the resulting diff before continuing.
+비어 있지 않은 루트 `AGENTS.override.md`가 있으면 멈추고, 이 파일이 `AGENTS.md`를 가리는 충돌을 보고합니다. WOMC 철학을 override에 쓰지 않으며, 사용자가 선택한 해결 없이 override를 이동·삭제하지 않습니다.
 
-## Keep the harness thin
+## 기존 AGENTS.md 다시 짜기
 
-- Treat the current task as chat input, not permanent project configuration.
-- Put only durable project context, project-wide constraints, and reusable command-backed completion criteria in the root `AGENTS.md`.
-- Keep existing user-authored `AGENTS.md` content. WOMC owns only the marked block.
-- Add a nested `AGENTS.md` only when a large repository has a subtree whose real commands or constraints differ from the root. Inspect the applicable instruction chain before doing so.
-- Create a separate product or requirements document only when durable product context is too detailed for a short link from `AGENTS.md`. Preserve an existing documentation convention.
-- Do not encode generic development advice, speculative future needs, or an implementation sequence Codex can decide per task.
+갱신 전에 WOMC 관리 영역 밖의 기존 내용도 네 범주 기준으로 감사합니다.
 
-## Validate the setup
+- 앞으로도 결과를 바꾸는 짧은 제품 원칙과 보안·승인 경계만 남깁니다.
+- 특정 작업에서 읽어야 할 지속적인 문서·로컬 스킬 경로만 남깁니다. 회의록·변경 기록·구현 일지는 라우팅에 자동 추가하지 않습니다.
+- 재사용할 수 있고 실제로 실행 가능한 공통 검증만 남깁니다.
+- 구현 이력·진행 상황·완료된 일·일회성 지시는 남기지 않습니다.
+- 긴 배경·근거·숫자·결정 경위는 프로젝트의 기존 관례에 맞는 `docs/`로 옮기고 `AGENTS.md`에는 해당 작업의 읽기 경로만 둔다.
+- 사용자가 만든 스킬과 지역 문서는 보존합니다.
 
-Run each safe local command recorded in the generated block when its toolchain and dependencies are available. Report the exact command and result. If a command cannot run, report the concrete missing executable, dependency, service, fixture, or configuration; do not describe an unrun command as passing.
+옮기거나 제거할 내용과 대상 파일을 먼저 확인합니다. 기존 내용을 필요한 문서로 옮긴 뒤 `--replace-unmanaged`로 관리 영역 밖을 정리합니다. 분류가 모호하면 제거하지 말고 충돌로 보고합니다.
 
-Do not claim that Codex loaded the harness merely because the file exists. If the user requests a live discovery check, run a read-only, ephemeral `codex exec` from the target root and confirm that it reports the intended project instructions. During plugin development, use the opt-in integration test documented in this plugin's README; it creates an isolated project and checks a unique harmless token. Do not consume an account or network resource for either check without authorization.
+## 하네스 생성·갱신
 
-For a web project, prefer its existing dev server and browser/E2E tooling. Verify the changed user flow and relevant visual states in a browser when the environment provides browser access. Do not install Playwright, a framework, or another dependency merely to standardize the harness; propose or add a dependency only when the task clearly needs it.
+루트 `AGENTS.md`의 WOMC 영역은 포함된 `scripts/setup_harness.py`로만 생성합니다. 스크립트 경로는 이 `SKILL.md`를 기준으로 해결합니다.
 
-Finish by listing created or updated files, preserved conflicts or limitations, and validation results. Do not commit, push, deploy, or change external services unless the user requested and authorized the specific action.
+1. `--dry-run`으로 제안을 미리 보고 실제 프로젝트 구조와 대조합니다.
+2. `--principle`에는 변하지 않는 제품 원칙만, `--approval-boundary`에는 지속적인 보안·승인 경계만 전달합니다. 현재 작업과 일회성 인수 조건은 전달하지 않습니다.
+3. 파일명만으로 알 수 없는 지속적인 작업별 읽기 경로는 `--route`로 전달합니다.
+4. 매니페스트·테스트 설정·CI·프로젝트 문서·사용자를 통해 확인한 안전한 로컬 명령만 `--check-command`으로 전달합니다.
+5. 기존 수동 값은 신규 값과 중복 제거해 병합됩니다. 정리할 값을 모두 검토한 뒤에만 해당 `--replace-*` 옵션을 사용합니다.
+6. 관리 영역 밖을 이미 감사·이전했을 때만 `--replace-unmanaged`를 사용합니다.
+7. 제안을 확인한 뒤 같은 인수로 `--dry-run` 없이 실행하고 diff를 검토합니다.
+
+마커가 부분적이거나 중복되면 멈추고 충돌을 보고합니다. 마커를 임의로 지워 복구하지 않습니다. 하위 트리의 제약이나 명령이 루트와 실제로 다른 대규모 저장소일 때만 중첩 `AGENTS.md`를 별도로 검토합니다.
+
+## 설정 검증하기
+
+생성 영역에 기록된 안전한 로컬 명령은 도구 체인과 의존성을 사용할 수 있을 때 각각 실행합니다. 정확한 명령과 결과를 보고합니다. 실행할 수 없다면 누락된 실행 파일, 의존성, 서비스, 픽스처, 설정을 구체적으로 보고하고 통과했다고 표현하지 않습니다.
+
+파일이 있다는 이유만으로 Codex가 하네스를 불러왔다고 주장하지 않습니다. 사용자가 실제 탐색 검사를 요청하면 대상 루트에서 읽기 전용 임시 `codex exec`를 실행해 의도한 지침을 보고하는지 확인합니다. 플러그인 개발 중에는 README에 기록된 선택형 통합 테스트를 사용합니다. 두 검사 모두 승인 없이 계정이나 네트워크 자원을 사용하지 않습니다.
+
+웹 프로젝트는 기존 개발 서버와 브라우저/E2E 도구를 우선합니다. 환경에서 브라우저에 접근할 수 있다면 변경된 사용자 흐름과 관련 시각 상태를 검증합니다. 하네스를 표준화하려고 Playwright나 다른 의존성을 설치하지 않습니다.
+
+마지막으로 생성·갱신한 파일, 보존한 충돌·제한, 실행한 정확한 검증 명령과 결과를 나열합니다. 사용자가 구체적으로 요청하지 않으면 커밋·푸시·배포·외부 설치 설정 변경을 하지 않습니다.

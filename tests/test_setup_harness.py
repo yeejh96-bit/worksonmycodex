@@ -13,6 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "works-on-my-codex" / "scripts" / "setup_harness.py"
 START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
+PHILOSOPHY = (
+    "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
+    "AGENTS.md에는 변하지 않는 제품 원칙, 보안·승인 경계, 작업별 문서·스킬 경로, 공통 검증 방법만 둔다."
+)
+VERSION_MARKER = "<!-- womc:skeleton-version=1.0.0 -->"
 
 
 def run(project: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -38,17 +43,19 @@ class SetupHarnessTest(unittest.TestCase):
         self.temp.cleanup()
 
     def test_empty_git_project_is_created_and_idempotent(self) -> None:
-        first = run(self.project, "--purpose", "A tiny notes app")
+        first = run(self.project, "--principle", "User notes remain local by default")
         self.assertEqual(first.returncode, 0, first.stderr)
         agents = self.project / "AGENTS.md"
         content = agents.read_text(encoding="utf-8")
-        self.assertIn("A tiny notes app", content)
+        self.assertEqual(content.splitlines()[0], PHILOSOPHY)
+        self.assertEqual(content.splitlines()[1], VERSION_MARKER)
+        self.assertIn("User notes remain local by default", content)
         self.assertEqual(content.count(START), 1)
         self.assertNotIn("Working contract", content)
         self.assertNotIn("No additional project-specific guardrails", content)
         before = digest(agents)
 
-        second = run(self.project, "--purpose", "A tiny notes app")
+        second = run(self.project, "--principle", "User notes remain local by default")
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertIn("unchanged", second.stdout)
         self.assertEqual(digest(agents), before)
@@ -71,11 +78,12 @@ class SetupHarnessTest(unittest.TestCase):
         result = run(self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertTrue(content.startswith(original_agents))
+        self.assertTrue(content.startswith(PHILOSOPHY))
+        self.assertIn(original_agents, content)
         self.assertIn("`npm run lint`", content)
         self.assertIn("`npm run test`", content)
         self.assertIn("`npm run test:e2e`", content)
-        self.assertIn("start the app with `npm run dev`", content)
+        self.assertIn("`npm run dev`로 앱을 시작", content)
         self.assertEqual(digest(source), source_before)
         self.assertEqual(digest(package), package_before)
 
@@ -99,21 +107,17 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("marker conflict", result.stderr)
         self.assertEqual(digest(agents), before)
 
-    def test_nonempty_root_override_is_updated_instead_of_ignored_agents(self) -> None:
+    def test_nonempty_root_override_stops_before_writing_root_agents(self) -> None:
         override = self.project / "AGENTS.override.md"
         original = "# Temporary root override\n\nKeep this rule.\n"
         override.write_text(original, encoding="utf-8")
 
-        result = run(self.project, "--purpose", "An override-aware project")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse((self.project / "AGENTS.md").exists())
-        content = override.read_text(encoding="utf-8")
-        self.assertTrue(content.startswith(original))
-        self.assertEqual(content.count(START), 1)
-
         before = digest(override)
-        self.assertEqual(run(self.project, "--purpose", "An override-aware project").returncode, 0)
+        result = run(self.project, "--principle", "The root AGENTS file owns the WOMC harness")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("takes precedence", result.stderr)
         self.assertEqual(digest(override), before)
+        self.assertFalse((self.project / "AGENTS.md").exists())
 
     def test_check_reports_drift_without_writing(self) -> None:
         result = run(self.project, "--check")
@@ -131,31 +135,31 @@ class SetupHarnessTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(f"`{command}` (project check)", content)
-        self.assertIn("only when it exits successfully", content)
+        self.assertIn(f"`{command}` (프로젝트 검증)", content)
+        self.assertIn("성공 종료해야 통과", content)
 
     def test_generated_block_contains_only_durable_supplied_guidance(self) -> None:
         result = run(
             self.project,
-            "--purpose",
-            "A local notes app",
-            "--guardrail",
+            "--principle",
             "Keep user data on device.",
-            "--done",
-            "The documented export check passes.",
+            "--approval-boundary",
+            "Get approval before exporting user data.",
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("A local notes app", content)
         self.assertIn("Keep user data on device.", content)
-        self.assertIn("The documented export check passes.", content)
+        self.assertIn("Get approval before exporting user data.", content)
+        self.assertIn("### 변하지 않는 제품 원칙", content)
+        self.assertIn("### 보안·승인 경계", content)
         self.assertNotIn("Working contract", content)
         self.assertNotIn("Routine project edits", content)
         self.assertNotIn("independent verification", content)
+        self.assertNotIn("완료 기준", content)
 
     def test_missing_validation_command_is_reported_without_persisting_filler(self) -> None:
-        result = run(self.project, "--purpose", "A tiny notes app")
+        result = run(self.project, "--principle", "Notes remain local")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("no validation command was detected", result.stderr)
@@ -172,12 +176,12 @@ class SetupHarnessTest(unittest.TestCase):
             encoding="utf-8",
         )
 
-        result = run(self.project, "--purpose", "A tiny notes app")
+        result = run(self.project, "--principle", "Notes remain local")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         content = agents.read_text(encoding="utf-8")
         self.assertIn("# Team rules\n\nKeep this.", content)
-        self.assertIn("A tiny notes app", content)
+        self.assertIn("Notes remain local", content)
         self.assertNotIn("Working contract", content)
         self.assertNotIn("Do not stop at a plan", content)
 
@@ -209,16 +213,187 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertNotIn("changed/untracked", (self.project / "AGENTS.md").read_text(encoding="utf-8"))
 
     def test_generated_values_cannot_break_the_managed_block(self) -> None:
-        result = run(self.project, "--guardrail", f"unsafe\n{END}")
+        result = run(self.project, "--approval-boundary", f"unsafe\n{END}")
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("single-line", result.stderr)
         self.assertFalse((self.project / "AGENTS.md").exists())
 
-        result = run(self.project, "--done", f"unsafe {END}")
+        result = run(self.project, "--principle", f"unsafe {END}")
         self.assertEqual(result.returncode, 2)
         self.assertIn("marker text", result.stderr)
         self.assertFalse((self.project / "AGENTS.md").exists())
+
+    def test_refresh_rebuilds_task_routes_from_current_project_structure(self) -> None:
+        docs = self.project / "docs"
+        docs.mkdir()
+        (docs / "architecture.md").write_text("# Architecture\n", encoding="utf-8")
+        skill = self.project / ".codex" / "skills" / "release-helper"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("# Release helper\n", encoding="utf-8")
+
+        first = run(
+            self.project,
+            "--principle",
+            "Stored records remain portable",
+            "--approval-boundary",
+            "Get approval before sending records externally",
+            "--check-command",
+            "make verify",
+        )
+        self.assertEqual(first.returncode, 0, first.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("아키텍처 또는 구현 구조 작업", content)
+        self.assertIn("`.codex/skills/release-helper/SKILL.md`", content)
+
+        (docs / "architecture.md").unlink()
+        (docs / "security.md").write_text("# Security\n", encoding="utf-8")
+        second = run(self.project)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        refreshed = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("docs/architecture.md", refreshed)
+        self.assertIn("보안, 인증 또는 개인정보 작업", refreshed)
+        self.assertIn("`docs/security.md`", refreshed)
+        self.assertIn("Stored records remain portable", refreshed)
+        self.assertIn("Get approval before sending records externally", refreshed)
+        self.assertIn("`make verify` (프로젝트 검증)", refreshed)
+
+    def test_progress_docs_do_not_accumulate_in_task_routes(self) -> None:
+        docs = self.project / "docs"
+        docs.mkdir()
+        for name in ("CHANGELOG.md", "meeting-notes.md", "implementation-log.md", "history.md"):
+            (docs / name).write_text(f"# {name}\n", encoding="utf-8")
+        (docs / "product.md").write_text("# Product\n", encoding="utf-8")
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`docs/product.md`", content)
+        for name in ("CHANGELOG.md", "meeting-notes.md", "implementation-log.md", "history.md"):
+            self.assertNotIn(name, content)
+
+    def test_manual_values_merge_and_explicit_replace_can_clear_them(self) -> None:
+        first = run(
+            self.project,
+            "--principle", "A",
+            "--approval-boundary", "Boundary A",
+            "--route", "Product work: read `docs/product.md`.",
+            "--check-command", "check-a",
+        )
+        self.assertEqual(first.returncode, 0, first.stderr)
+
+        second = run(
+            self.project,
+            "--principle", "B",
+            "--approval-boundary", "Boundary B",
+            "--route", "Security work: read `docs/security.md`.",
+            "--check-command", "check-b",
+        )
+        self.assertEqual(second.returncode, 0, second.stderr)
+        merged = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        for value in ("- A", "- B", "- Boundary A", "- Boundary B", "docs/product.md", "docs/security.md", "`check-a`", "`check-b`"):
+            self.assertIn(value, merged)
+
+        replaced = run(
+            self.project,
+            "--replace-principles",
+            "--replace-approval-boundaries",
+            "--replace-routes",
+            "--replace-check-commands",
+        )
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        for value in ("- A", "- B", "- Boundary A", "- Boundary B", "docs/product.md", "docs/security.md", "`check-a`", "`check-b`"):
+            self.assertNotIn(value, content)
+
+    def test_replace_unmanaged_keeps_only_reviewed_womc_content(self) -> None:
+        (self.project / "AGENTS.md").write_text("# Old implementation diary\n\nFinished ticket 42.\n", encoding="utf-8")
+
+        result = run(self.project, "--replace-unmanaged", "--principle", "Stable principle")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("implementation diary", content)
+        self.assertNotIn("ticket 42", content)
+        self.assertIn("Stable principle", content)
+
+    def test_workspace_structure_produces_scoped_routes_and_checks(self) -> None:
+        (self.project / "package.json").write_text(
+            '{"private":true,"packageManager":"pnpm@10.0.0","workspaces":["apps/*"]}\n', encoding="utf-8"
+        )
+        web = self.project / "apps" / "web"
+        web.mkdir(parents=True)
+        (web / "package.json").write_text(
+            '{"scripts":{"test":"node --test","build":"node --check index.js"}}\n',
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`apps/web/` 아래 변경", content)
+        self.assertIn("`(cd apps/web && pnpm run test)`", content)
+        self.assertIn("`(cd apps/web && pnpm run build)`", content)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux-specific development command priority")
+    def test_linux_specific_dev_command_is_preferred(self) -> None:
+        (self.project / "package.json").write_text(
+            '{"scripts":{"dev":"node app.js","dev:linux":"node linux.js"}}\n', encoding="utf-8"
+        )
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("`npm run dev:linux`로 앱을 시작", content)
+        self.assertNotIn("`npm run dev`로 앱을 시작", content)
+
+    def test_workspace_outside_root_is_ignored_and_space_is_shell_quoted(self) -> None:
+        outside = self.project.parent / f"{self.project.name}-outside-workspace"
+        outside.mkdir(exist_ok=True)
+        self.addCleanup(shutil.rmtree, outside, True)
+        (outside / "package.json").write_text('{"scripts":{"test":"node --test"}}\n', encoding="utf-8")
+        (self.project / "package.json").write_text(
+            f'{{"workspaces":["../{outside.name}","apps/*"]}}\n', encoding="utf-8"
+        )
+        spaced = self.project / "apps" / "web app"
+        spaced.mkdir(parents=True)
+        (spaced / "package.json").write_text('{"scripts":{"test":"node --test"}}\n', encoding="utf-8")
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("outside-workspace", content)
+        self.assertIn("(cd 'apps/web app' && npm run test)", content)
+
+    def test_untrusted_package_manager_name_is_not_emitted(self) -> None:
+        (self.project / "package.json").write_text(
+            '{"packageManager":"evil-command@1","scripts":{"test":"node --test"}}\n', encoding="utf-8"
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("evil-command", content)
+        self.assertIn("`npm run test`", content)
+
+    def test_refresh_moves_legacy_managed_block_to_the_top(self) -> None:
+        agents = self.project / "AGENTS.md"
+        agents.write_text(
+            "# User rules\n\nKeep this.\n\n"
+            f"{START}\n## WOMC project harness\n{END}\n",
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = agents.read_text(encoding="utf-8")
+        self.assertEqual(content.splitlines()[0], PHILOSOPHY)
+        self.assertEqual(content.count(PHILOSOPHY), 1)
+        self.assertIn("# User rules\n\nKeep this.", content)
 
 
 if __name__ == "__main__":

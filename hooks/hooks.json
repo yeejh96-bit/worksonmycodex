@@ -8,6 +8,11 @@
             "type": "command",
             "command": "python3 \"$PLUGIN_ROOT/skills/works-on-my-codex-statusline/scripts/configure_statusline.py\" --apply --quiet --once-state \"$PLUGIN_DATA/statusline-v2.applied\"",
             "commandWindows": "python \"%PLUGIN_ROOT%\\skills\\works-on-my-codex-statusline\\scripts\\configure_statusline.py\" --apply --quiet --once-state \"%PLUGIN_DATA%\\statusline-v2.applied\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/skills/works-on-my-codex/scripts/womc_check.py\"",
+            "commandWindows": "python \"%PLUGIN_ROOT%\\skills\\works-on-my-codex\\scripts\\womc_check.py\""
           }
         ]
       }

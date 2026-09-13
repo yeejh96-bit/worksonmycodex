@@ -125,6 +125,10 @@ class StatusLineTest(unittest.TestCase):
         self.assertIn("--apply --quiet", command["command"])
         self.assertIn("$PLUGIN_DATA/statusline-v2.applied", command["command"])
         self.assertIn("%PLUGIN_ROOT%", command["commandWindows"])
+        harness_check = session_start[0]["hooks"][1]
+        self.assertEqual(harness_check["type"], "command")
+        self.assertIn("$PLUGIN_ROOT/skills/works-on-my-codex/scripts/womc_check.py", harness_check["command"])
+        self.assertIn("%PLUGIN_ROOT%", harness_check["commandWindows"])
 
 
 if __name__ == "__main__":
