@@ -25,7 +25,7 @@ def plugin_version() -> str:
         value = json.loads(manifest.read_text(encoding="utf-8")).get("version")
     except (OSError, UnicodeError, ValueError, AttributeError):
         value = None
-    return value if isinstance(value, str) and value.strip() else "1.2.0"
+    return value if isinstance(value, str) and value.strip() else "1.3.0"
 
 
 WOMC_VERSION = plugin_version()
