@@ -1,5 +1,5 @@
 > **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다.
-<!-- womc:version=1.1.0+codex.20260914042645 -->
+<!-- womc:version=1.1.0+codex.20260914051646 -->
 <!-- womc:project-harness:start -->
 <!-- womc:context-snapshot=sha256:5448ad62ccd525aa104d7b94f50526af1f0f0e154777307c565606c041200ca7 -->
 ## WOMC 프로젝트 하네스

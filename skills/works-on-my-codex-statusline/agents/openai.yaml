@@ -1,6 +1,0 @@
-interface:
-  display_name: "WOMC Status Line"
-  short_description: "Match the native Codex footer order and fields"
-  default_prompt: "Use $works-on-my-codex-statusline to match the WOMC status line to the native Codex footer."
-policy:
-  allow_implicit_invocation: true
