@@ -111,7 +111,7 @@ class WomcCheckTest(unittest.TestCase):
         result = run(self.project)
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("시작 문서", result.stdout)
+        self.assertIn("읽기 경로", result.stdout)
         self.assertIn("$works-on-my-codex", result.stdout)
         self.assertIn("되묻지 말고", result.stdout)
 
@@ -124,18 +124,32 @@ class WomcCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
 
-    def test_context_document_content_change_requests_semantic_review(self) -> None:
+    def test_context_document_body_change_does_not_request_refresh(self) -> None:
         docs = self.project / "docs"
         docs.mkdir()
-        context = docs / "context.md"
-        context.write_text("# Context\n\nInitial rule.\n", encoding="utf-8")
+        context = docs / "architecture.md"
+        context.write_text("# Architecture\n\nInitial explanation.\n", encoding="utf-8")
         setup(self.project)
-        context.write_text("# Context\n\nRead this before every implementation task.\n", encoding="utf-8")
+        context.write_text("# Architecture\n\nExpanded explanation.\n", encoding="utf-8")
 
         result = run(self.project)
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("시작 문서", result.stdout)
+        self.assertEqual(result.stdout, "")
+
+    def test_validation_command_change_requests_refresh(self) -> None:
+        package = self.project / "package.json"
+        package.write_text('{"scripts":{"test":"node --test"}}\n', encoding="utf-8")
+        setup(self.project)
+        package.write_text(
+            '{"scripts":{"test":"node --test","lint":"node --check app.js"}}\n',
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("검증 명령", result.stdout)
         self.assertIn("하네스를 갱신", result.stdout)
 
     def test_nonempty_override_reports_shadowing(self) -> None:

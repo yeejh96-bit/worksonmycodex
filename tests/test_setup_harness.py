@@ -245,7 +245,7 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("아키텍처 또는 구현 구조 작업", content)
-        self.assertIn("`.codex/skills/release-helper/SKILL.md`", content)
+        self.assertNotIn(".codex/skills/release-helper/SKILL.md", content)
 
         (docs / "architecture.md").unlink()
         (docs / "security.md").write_text("# Security\n", encoding="utf-8")
@@ -277,8 +277,42 @@ class SetupHarnessTest(unittest.TestCase):
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("릴리스 후보를 만들거나 배포 전 체크리스트를 검증할 때", content)
         self.assertIn("`skills/release-helper/SKILL.md`", content)
-        self.assertIn("`release-helper` 스킬을 따른다", content)
+        self.assertNotIn("다음 설명에 해당하는 작업", content)
         self.assertIn("끝내기 전에 `$works-on-my-codex`", content)
+
+    def test_plugin_skills_are_not_duplicated_in_agents_routes(self) -> None:
+        (self.project / ".codex-plugin").mkdir()
+        (self.project / ".codex-plugin" / "plugin.json").write_text(
+            '{"name":"sample","skills":"./skills/"}\n', encoding="utf-8"
+        )
+        skill = self.project / "skills" / "release-helper"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text(
+            "---\nname: release-helper\ndescription: 릴리스를 준비할 때 사용합니다.\n---\n",
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("skills/release-helper/SKILL.md", content)
+
+    def test_overlong_skill_description_is_not_copied_into_agents(self) -> None:
+        skill = self.project / "skills" / "release-helper"
+        skill.mkdir(parents=True)
+        description = "A" * 161
+        (skill / "SKILL.md").write_text(
+            f"---\nname: release-helper\ndescription: {description}\n---\n",
+            encoding="utf-8",
+        )
+
+        result = run(self.project)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn(description, content)
+        self.assertIn("`release-helper` 스킬 작업", content)
 
     def test_progress_docs_do_not_accumulate_in_task_routes(self) -> None:
         docs = self.project / "docs"

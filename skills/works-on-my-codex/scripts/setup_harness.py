@@ -33,7 +33,7 @@ VERSION_MARKER = f"<!-- womc:version={WOMC_VERSION} -->"
 MANUAL_ROUTE_MARKER = "<!-- womc:manual-route -->"
 CONTEXT_SNAPSHOT_PREFIX = "<!-- womc:context-snapshot=sha256:"
 MAINTENANCE_ROUTE = (
-    "- 프로젝트 목적·지속 제약·완료 기준·시작 문서·로컬 스킬·워크스페이스·검증 명령을 바꾼 작업은 "
+    "- 프로젝트 목적·지속 제약·완료 기준·읽기 경로·워크스페이스·검증 명령을 바꾼 작업은 "
     "끝내기 전에 `$works-on-my-codex`로 루트 `AGENTS.md` 하네스를 갱신한다."
 )
 AUTONOMY_PRINCIPLES = (
@@ -152,7 +152,7 @@ def skill_description(root: Path, relative: str) -> str | None:
     if (
         not description
         or description in {">", ">-", "|", "|-"}
-        or len(description) > 320
+        or len(description) > 160
         or any(value in description for value in ("`", "\n", "\r", "<!--", "-->"))
     ):
         return None
@@ -160,58 +160,43 @@ def skill_description(root: Path, relative: str) -> str | None:
 
 
 def context_snapshot(root: Path) -> str:
-    """Fingerprint durable context candidates so semantic review is requested after changes."""
-    patterns = (
-        "*.md",
-        "*.rst",
-        "*.txt",
-        "docs/**/*.md",
-        ".codex/skills/*/SKILL.md",
-        ".agents/skills/*/SKILL.md",
-        "skills/*/SKILL.md",
-        "package.json",
-        "pyproject.toml",
-        "Cargo.toml",
-        "go.mod",
-        "apps/*/package.json",
-        "apps/*/pyproject.toml",
-        "apps/*/Cargo.toml",
-        "apps/*/go.mod",
-        "packages/*/package.json",
-        "packages/*/pyproject.toml",
-        "packages/*/Cargo.toml",
-        "packages/*/go.mod",
-        "services/*/package.json",
-        "services/*/pyproject.toml",
-        "services/*/Cargo.toml",
-        "services/*/go.mod",
-        "pnpm-workspace.yaml",
-        "turbo.json",
-        "nx.json",
-        "pytest.ini",
-        ".github/workflows/*.yml",
-        ".github/workflows/*.yaml",
-    )
-    candidates = relative_files(root, patterns, limit=200)
-    selected = [
-        item
-        for item in candidates
-        if item not in {"AGENTS.md", "AGENTS.override.md"}
-        and not any(token in f"/{item.lower()}" for token in TRANSIENT_DOC_TOKENS)
-    ]
-    digest = hashlib.sha256()
-    for relative in selected:
-        path = root / relative
-        digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        try:
-            with path.open("rb") as handle:
-                while chunk := handle.read(65536):
-                    digest.update(chunk)
-        except OSError:
+    """Fingerprint routing structure without reacting to ordinary document edits."""
+    entries = [f"document\0{relative}" for relative in existing_docs(root)]
+    for relative in existing_skills(root):
+        if skill_is_natively_discoverable(root, relative):
             continue
+        entries.append(f"skill\0{relative}\0{skill_description(root, relative) or ''}")
+    for area in project_areas(root):
+        relative = area.relative_to(root).as_posix()
+        manifest = next(
+            name for name in ("package.json", "pyproject.toml", "Cargo.toml", "go.mod") if (area / name).is_file()
+        )
+        entries.append(f"workspace\0{relative}\0{manifest}")
+    commands, dev_commands = detect(root)
+    entries.extend(f"check\0{label}\0{command}" for label, command in commands)
+    entries.extend(f"dev\0{command}" for command in dev_commands)
+
+    digest = hashlib.sha256()
+    for entry in entries:
+        digest.update(entry.encode("utf-8"))
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def skill_is_natively_discoverable(root: Path, relative: str) -> bool:
+    """Return whether Codex already exposes this skill without an AGENTS.md route."""
+    if relative.startswith((".codex/skills/", ".agents/skills/")):
+        return True
+    manifest = json_file(root / ".codex-plugin" / "plugin.json")
+    configured = manifest.get("skills")
+    roots = [configured] if isinstance(configured, str) else configured if isinstance(configured, list) else []
+    for value in roots:
+        if not isinstance(value, str):
+            continue
+        normalized = value.removeprefix("./").rstrip("/")
+        if normalized and relative.startswith(f"{normalized}/"):
+            return True
+    return False
 
 
 def package_manager(root: Path, fallback: str | None = None) -> str | None:
@@ -386,14 +371,15 @@ def route_lines(root: Path) -> list[str]:
     if general:
         routes.append(f"- 프로젝트 맥락 또는 동작 변경: {', '.join(f'`{item}`' for item in general)} 문서를 읽는다.")
     for skill in skills:
+        if skill_is_natively_discoverable(root, skill):
+            continue
         name = Path(skill).parent.name
         description = skill_description(root, skill)
         if description:
-            routes.append(
-                f"- 다음 설명에 해당하는 작업은 `{skill}` 파일을 읽고 `{name}` 스킬을 따른다: {description}"
-            )
+            condition = description.rstrip(". 。")
+            routes.append(f"- {condition}: `{skill}`를 읽고 따른다.")
         else:
-            routes.append(f"- `{name}` 스킬에 해당하는 작업: `{skill}` 파일을 읽고 따른다.")
+            routes.append(f"- `{name}` 스킬 작업: `{skill}`를 읽고 따른다.")
     for area in project_areas(root):
         relative = area.relative_to(root).as_posix()
         manifest = next(
@@ -461,7 +447,7 @@ def make_block(
     if commands or dev_commands:
         lines.extend(["", "### 공통 검증 방법"])
     if commands:
-        lines.append("- 변경 범위에 해당하는 프로젝트 검증을 실행한다:")
+        lines.append("- 변경의 영향과 위험에 맞는 최소 충분 검증을 선택하고, 아래 명령은 해당 범위에 필요할 때 실행한다:")
         lines.extend(f"  - `{command}` ({label})" for label, command in commands)
         lines.append("- 검증 명령이 성공 종료해야 통과로 본다. 실행할 수 없다면 구체적인 방해 요인을 보고하고 통과했다고 표현하지 않는다.")
 

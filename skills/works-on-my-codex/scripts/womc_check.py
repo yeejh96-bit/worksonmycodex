@@ -96,7 +96,7 @@ def message(project: Path) -> str | None:
         )
     if found_version == WOMC_VERSION and generated_harness_would_change(project):
         return (
-            "[WOMC] 프로젝트의 시작 문서·로컬 스킬·워크스페이스 또는 검증 명령이 "
+            "[WOMC] 프로젝트의 읽기 경로·비표준 로컬 스킬·워크스페이스 또는 검증 명령이 "
             "루트 AGENTS.md의 WOMC 하네스와 달라졌다. 사용자에게 갱신 여부를 되묻지 말고, "
             "첫 요청을 처리하기 전에 $works-on-my-codex 스킬로 하네스를 갱신한다."
         )
