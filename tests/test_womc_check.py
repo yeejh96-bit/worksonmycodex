@@ -47,6 +47,9 @@ class WomcCheckTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def test_plugin_version_is_plain_semver(self) -> None:
+        self.assertRegex(PLUGIN_VERSION, r"^\d+\.\d+\.\d+$")
+
     def test_missing_harness_requests_setup(self) -> None:
         result = run(self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -69,7 +72,7 @@ class WomcCheckTest(unittest.TestCase):
         self.assertIn("갱신", result.stdout)
 
     def test_current_or_newer_harness_is_silent(self) -> None:
-        for version in (PLUGIN_VERSION, "1.2.0+codex.20990101000000"):
+        for version in (PLUGIN_VERSION, "1.3.0"):
             with self.subTest(version=version):
                 setup(self.project)
                 agents = self.project / "AGENTS.md"
@@ -85,13 +88,13 @@ class WomcCheckTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
 
-    def test_plugin_cachebuster_update_requests_harness_refresh(self) -> None:
+    def test_legacy_dated_version_with_same_base_requests_normalization(self) -> None:
         setup(self.project)
         agents = self.project / "AGENTS.md"
         agents.write_text(
             agents.read_text(encoding="utf-8").replace(
                 VERSION_MARKER,
-                "<!-- womc:version=1.1.0+codex.20260101000000 -->",
+                f"<!-- womc:version={PLUGIN_VERSION}+codex.20260101000000 -->",
             ),
             encoding="utf-8",
         )

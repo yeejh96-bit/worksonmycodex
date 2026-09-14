@@ -22,27 +22,12 @@ def version_tuple(value: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in parts)  # type: ignore[return-value]
 
 
-def codex_cachebuster(value: str) -> str | None:
-    if "+codex." not in value:
-        return None
-    return value.split("+codex.", 1)[1]
-
-
 def project_version_is_older(project_version: str, plugin_version: str) -> bool:
     project_base = version_tuple(project_version)
     plugin_base = version_tuple(plugin_version)
     if project_base != plugin_base:
         return project_base < plugin_base
-    if project_version == plugin_version:
-        return False
-    project_build = codex_cachebuster(project_version)
-    plugin_build = codex_cachebuster(plugin_version)
-    if plugin_build is None:
-        return False
-    if project_build is None:
-        return True
-    if project_build.isdigit() and plugin_build.isdigit():
-        return project_build < plugin_build
+    # Normalize legacy date/cachebuster builds to the current x.x.x marker.
     return project_version != plugin_version
 
 

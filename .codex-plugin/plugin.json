@@ -1,6 +1,6 @@
 {
   "name": "works-on-my-codex",
-  "version": "1.1.0+codex.20260914051646",
+  "version": "1.2.0",
   "description": "Keep a thin, project-specific Codex harness current.",
   "author": {
     "name": "Works on My Codex contributors"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "WOMC \u2014 Works on My Codex",
     "shortDescription": "Keep a thin, project-specific Codex harness current.",
-    "longDescription": "WOMC creates and refreshes a thin project harness when contextual reading routes, non-native skills, workspaces, or validation commands change. It avoids reacting to ordinary document edits or duplicating natively discovered skill descriptions. Its trusted session hook performs only a read-only harness check and never changes personal Codex UI settings.",
+    "longDescription": "WOMC creates and refreshes a thin project harness when contextual reading routes, non-native skills, workspaces, or validation commands change. On an explicit WOMC update request, it refreshes the Git marketplace and installed plugin before updating the current project harness. It avoids reacting to ordinary document edits or duplicating natively discovered skill descriptions. Its trusted session hook performs only a read-only harness check and never changes personal Codex UI settings.",
     "developerName": "Works on My Codex contributors",
     "category": "Productivity",
     "capabilities": [

@@ -29,6 +29,18 @@ codex plugin add works-on-my-codex@works-on-my-codex
 
 마켓플레이스 등록과 플러그인 설치는 Codex 설정을 변경한다. 설치 후 새 세션을 열고 `/hooks`에서 WOMC `SessionStart` 훅을 검토해 신뢰한다. 다음 세션부터 훅이 현재 프로젝트의 WOMC 하네스 유무·버전과 프로젝트 드리프트를 읽기 전용으로 검사한다. 플러그인과 `AGENTS.md` 하네스는 하나의 WOMC 버전을 사용하며, 플러그인이 갱신되면 다음 세션에서 하네스도 같은 버전으로 갱신한다. 읽기 경로, 비표준 로컬 스킬, 워크스페이스 또는 검증 명령의 구조가 달라지면 모델이 첫 요청 전에 하네스를 갱신한다. 일반 문서 본문이나 소스 코드 수정만으로는 갱신을 일으키지 않는다. 훅은 프로젝트 파일이나 개인 Codex UI 설정을 직접 수정하지 않고 필요한 하네스 갱신만 모델에게 알린다.
 
+## WOMC 업데이트
+
+Codex에 `이 프로젝트 WOMC를 최신 버전으로 업데이트해 줘.`처럼 실행을 요청하면 `$works-on-my-codex`가 다음 명령을 순서대로 실행한다.
+
+```sh
+codex plugin marketplace upgrade works-on-my-codex
+codex plugin add works-on-my-codex@works-on-my-codex
+```
+
+설치 버전을 확인한 뒤 최신 스킬로 현재 프로젝트의 `AGENTS.md` 하네스까지 갱신한다. 업데이트 방법이나 버전을 질문만 한 경우에는 명령을 실행하지 않는다. WOMC 버전은 날짜나 빌드 번호를 붙이지 않은 `x.x.x` 형식만 사용한다.
+두 `codex plugin` 명령은 Windows, macOS, Linux에서 동일하며, 하네스 생성에는 각 환경에서 사용 가능한 Python 실행 파일을 사용한다.
+
 ## 사용
 
 Codex에 `이 프로젝트에 $works-on-my-codex를 적용해 줘.`라고 요청한다. WOMC는 저장소의 문서, 로컬 스킬, 매니페스트, 작업 공간 구조를 살펴보고 작업 경로와 공통 검증을 맞춘다. 문서 이름이 회의록·변경 기록·구현 일지인 경우 자동 라우팅에서 제외한다.
