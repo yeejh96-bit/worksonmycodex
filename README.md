@@ -39,6 +39,7 @@ codex plugin add works-on-my-codex@works-on-my-codex
 ```
 
 설치 버전을 확인한 뒤 최신 스킬로 현재 프로젝트의 `AGENTS.md` 하네스까지 갱신한다. 업데이트 방법이나 버전을 질문만 한 경우에는 명령을 실행하지 않는다. WOMC 버전은 날짜나 빌드 번호를 붙이지 않은 `x.x.x` 형식만 사용한다.
+설치본 버전·활성화 상태, 하네스의 `--check` 결과, 실행 중인 세션의 자동 반영 여부는 구분해서 보고한다. 최신 스킬 파일을 직접 읽었다는 이유로 세션의 스킬 목록도 자동 갱신됐다고 판단하지 않는다.
 두 `codex plugin` 명령은 Windows, macOS, Linux에서 동일하며, 하네스 생성에는 각 환경에서 사용 가능한 Python 실행 파일을 사용한다.
 
 ## 사용
@@ -64,9 +65,14 @@ python3 skills/works-on-my-codex/scripts/setup_harness.py \
 ## 파일과 동작
 
 - WOMC 철학과 하네스는 루트 `AGENTS.md`에만 관리한다.
+- 필요한 질문은 지원되는 환경에서 비동기로 전달하고, 답변과 무관한 안전한 작업은 계속한다. 답변·승인이 필요한 작업은 응답을 기다리며 무응답을 동의로 간주하지 않는다.
 - 루트 `AGENTS.md`가 없으면 만든다.
 - 비어 있지 않은 루트 `AGENTS.override.md`가 있으면 이 파일이 `AGENTS.md`를 가리므로 수정을 멈추고 충돌을 보고한다.
-- WOMC 철학 문구와 `womc:project-harness` 표시 영역을 맨 위에 둔다.
+- 맨 위 두 줄에 아래 설명 원칙을 고정하고, 한 줄을 비운 뒤 WOMC 철학 문구와 `womc:project-harness` 표시 영역을 둔다. 기존 하네스 갱신에도 적용하며 반복 실행해도 중복하지 않는다.
+  ```text
+  나는 코딩을 모른다. 전문 용어는 쉽고 간결하게 설명한다.
+  모든 설명·보고는 한국어로 하며, 쉽고 간결하게 한다.
+  ```
 - 표시가 부분적이거나 중복되면 파일을 쓰지 않는다.
 - 관리 영역 밖의 기존 내용은 기본적으로 보존한다. 모델이 위 범주 기준으로 감사·이전한 후에만 `--replace-unmanaged`로 정리한다.
 - 갱신할 때마다 정식 문서, 로컬 스킬, 매니페스트, `apps/`·`packages/`·`services/`, JavaScript workspace를 다시 탐색한다.
@@ -80,7 +86,7 @@ python3 skills/works-on-my-codex/scripts/setup_harness.py \
 
 ## 제거
 
-루트 `AGENTS.md`에서 WOMC 철학 문구, `womc:version` 표식, 완전한 WOMC 관리 영역을 함께 제거한다. 주변의 사용자 작성 내용은 보존한다. 플러그인은 명령의 범위를 검토한 뒤 `codex plugin remove works-on-my-codex@works-on-my-codex`로 제거한다.
+루트 `AGENTS.md`에서 WOMC가 추가한 맨 위 설명 원칙 두 줄, WOMC 철학 문구, `womc:version` 표식, 완전한 WOMC 관리 영역을 함께 제거한다. 주변의 사용자 작성 내용은 보존한다. 플러그인은 명령의 범위를 검토한 뒤 `codex plugin remove works-on-my-codex@works-on-my-codex`로 제거한다.
 
 ## 검증
 
@@ -91,3 +97,4 @@ python3 /home/lee/.codex/skills/.system/plugin-creator/scripts/validate_plugin.p
 ```
 
 `WOMC_RUN_CODEX_INTEGRATION=1 python3 -B -m unittest tests.test_codex_integration -v`는 읽기 전용 임시 Codex 턴으로 실제 지침 탐색을 검사하며 계정·네트워크를 사용하므로 명시적으로 활성화해야 한다.
+이 자동 테스트는 새 실행의 지침 탐색만 확인한다. 기존 세션에서 플러그인 갱신이 자동 반영되는지는 별도의 [선택형 수동 통합 검사](skills/works-on-my-codex/references/update-verification.md)로 확인한다.

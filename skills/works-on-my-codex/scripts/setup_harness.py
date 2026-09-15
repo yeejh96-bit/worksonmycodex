@@ -25,7 +25,7 @@ def plugin_version() -> str:
         value = json.loads(manifest.read_text(encoding="utf-8")).get("version")
     except (OSError, UnicodeError, ValueError, AttributeError):
         value = None
-    return value if isinstance(value, str) and value.strip() else "1.3.0"
+    return value if isinstance(value, str) and value.strip() else "1.3.1"
 
 
 WOMC_VERSION = plugin_version()
@@ -39,8 +39,13 @@ MAINTENANCE_ROUTE = (
 AUTONOMY_PRINCIPLES = (
     "목표와 범위가 충분히 분명하면 조사나 계획에서 멈추지 않고 구현·검증·결과 보고까지 진행한다.",
     "결과를 크게 바꾸지 않는 세부 사항은 프로젝트 관례와 증거를 바탕으로 정하고, 되돌리기 어려운 결정이나 목표를 바꾸는 선택만 사용자에게 묻는다.",
+    "필요한 질문은 현재 환경에 비동기 질문 도구가 있으면 활용하고, 답변과 무관한 안전한 작업은 계속한다. 답변이나 승인이 필요한 작업은 응답을 기다리며, 무응답을 동의로 간주하지 않는다.",
     "작업 중 이후 결과를 바꾸는 프로젝트 사실·제약·완료 기준·검증 방법을 알게 되면 현재 작업을 끝내기 전에 하네스나 연결된 문서·스킬에 반영한다.",
     "현재 작업의 진행 기록과 일회성 계획은 하네스에 쌓지 않는다.",
+)
+COMMUNICATION_PREFACE = (
+    "나는 코딩을 모른다. 전문 용어는 쉽고 간결하게 설명한다.",
+    "모든 설명·보고는 한국어로 하며, 쉽고 간결하게 한다.",
 )
 PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
@@ -407,6 +412,8 @@ def make_block(
         if not any(existing_command == command for _, existing_command in commands):
             commands.append(("프로젝트 검증", command))
     lines = [
+        *COMMUNICATION_PREFACE,
+        "",
         PHILOSOPHY,
         VERSION_MARKER,
         START,
@@ -472,6 +479,9 @@ def merge(existing: str, block: str, replace_unmanaged: bool = False) -> str:
     if starts == 1:
         pattern = re.compile(re.escape(START) + r".*?" + re.escape(END) + r"(?:\r?\n)?", re.DOTALL)
         remaining = pattern.sub("", existing, count=1)
+        preface = newline.join(COMMUNICATION_PREFACE) + newline + newline
+        if remaining.startswith(preface + PHILOSOPHY):
+            remaining = remaining[len(preface):]
         # Migrate the philosophy line from older/current blocks while keeping WOMC content at the top.
         remaining = re.sub(r"^> \*\*WOMC (?:philosophy|철학):.*\r?\n?", "", remaining, count=1)
         remaining = re.sub(r"^<!-- womc:(?:version|skeleton-version)=[^>]+ -->\r?\n?", "", remaining, count=1)

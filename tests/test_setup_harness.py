@@ -14,6 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills" / "works-on-my-codex" / "scripts" / "setup_harness.py"
 START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
+COMMUNICATION_PREFACE = (
+    "나는 코딩을 모른다. 전문 용어는 쉽고 간결하게 설명한다.\n"
+    "모든 설명·보고는 한국어로 하며, 쉽고 간결하게 한다.\n\n"
+)
 PHILOSOPHY = (
     "> **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. "
     "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
@@ -49,8 +53,8 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         agents = self.project / "AGENTS.md"
         content = agents.read_text(encoding="utf-8")
-        self.assertEqual(content.splitlines()[0], PHILOSOPHY)
-        self.assertEqual(content.splitlines()[1], VERSION_MARKER)
+        self.assertTrue(content.startswith(COMMUNICATION_PREFACE + PHILOSOPHY))
+        self.assertEqual(content.splitlines()[4], VERSION_MARKER)
         self.assertIn("User notes remain local by default", content)
         self.assertEqual(content.count(START), 1)
         self.assertNotIn("Working contract", content)
@@ -80,7 +84,7 @@ class SetupHarnessTest(unittest.TestCase):
         result = run(self.project)
         self.assertEqual(result.returncode, 0, result.stderr)
         content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertTrue(content.startswith(PHILOSOPHY))
+        self.assertTrue(content.startswith(COMMUNICATION_PREFACE + PHILOSOPHY))
         self.assertIn(original_agents, content)
         self.assertIn("`npm run lint`", content)
         self.assertIn("`npm run test`", content)
@@ -489,9 +493,31 @@ class SetupHarnessTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         content = agents.read_text(encoding="utf-8")
-        self.assertEqual(content.splitlines()[0], PHILOSOPHY)
+        self.assertTrue(content.startswith(COMMUNICATION_PREFACE + PHILOSOPHY))
         self.assertEqual(content.count(PHILOSOPHY), 1)
         self.assertIn("# User rules\n\nKeep this.", content)
+
+    def test_refresh_adds_preface_to_existing_harness_without_duplication(self) -> None:
+        agents = self.project / "AGENTS.md"
+        user_content = "# 사용자 지침\n\n원래 내용을 보존한다.\n"
+        agents.write_text(
+            f"{PHILOSOPHY}\n{VERSION_MARKER}\n{START}\n"
+            f"### 변하지 않는 제품 원칙\n- 기존 원칙 유지\n{END}\n\n{user_content}",
+            encoding="utf-8",
+        )
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = agents.read_text(encoding="utf-8")
+        self.assertTrue(content.startswith(COMMUNICATION_PREFACE + PHILOSOPHY))
+        self.assertEqual(content.count(COMMUNICATION_PREFACE), 1)
+        self.assertEqual(content.count(PHILOSOPHY), 1)
+        self.assertEqual(content.count(VERSION_MARKER), 1)
+        self.assertIn("- 기존 원칙 유지", content)
+        self.assertTrue(content.endswith(user_content))
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(agents.read_text(encoding="utf-8"), content)
+        self.assertEqual(run(self.project, "--check").returncode, 0)
 
 
 if __name__ == "__main__":
