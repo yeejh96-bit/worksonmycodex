@@ -46,6 +46,8 @@ codex plugin add works-on-my-codex@works-on-my-codex
 
 Codex에 `이 프로젝트에 $works-on-my-codex를 적용해 줘.`라고 요청한다. WOMC는 저장소의 문서, 로컬 스킬, 매니페스트, 작업 공간 구조를 살펴보고 작업 경로와 공통 검증을 맞춘다. 문서 이름이 회의록·변경 기록·구현 일지인 경우 자동 라우팅에서 제외한다.
 
+처음 적용·명시적 갱신·스킬 정리 요청에서는 현재 프로젝트의 운영 스킬이 제공하는 고유 지식·도구·품질 기준을 검토한다. 새 프로젝트는 추가 스킬 없이 시작할 수 있고, 기존 지침으로 충분한 일반 작업 조언은 스킬로 만들지 않는다. 기존 스킬은 근거에 따라 유지·축소·통합·문서 이동·제거 후보로 판단하며, 실제 삭제는 승인 경계를 따른다. 다른 프로젝트와 참고자료 속 과거 스킬은 자동으로 가져오지 않는다.
+
 포함된 생성기를 직접 실행할 수도 있다.
 
 ```sh
@@ -59,6 +61,8 @@ python3 skills/works-on-my-codex/scripts/setup_harness.py \
   --check-command "make test" \
   --dry-run
 ```
+
+생성기는 `AGENTS.md`를 만들며 스킬의 유용성을 자동 판정하지 않는다. `--check`는 생성 결과가 현재 하네스와 일치하는지만 검사한다. 스킬 필요성과 작업별 읽기 범위는 모델이 실제 지침·코드를 보고 판단한다.
 
 기존 수동 원칙·완료 기준·승인 경계·작업 경로·검증 명령은 갱신 시 병합된다. 정리할 내용을 모두 검토한 뒤에만 `--replace-principles`, `--replace-done-conditions`, `--replace-approval-boundaries`, `--replace-routes`, `--replace-check-commands`, `--replace-unmanaged`를 사용한다.
 
