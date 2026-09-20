@@ -59,6 +59,8 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertEqual(content.count(START), 1)
         self.assertNotIn("Working contract", content)
         self.assertNotIn("No additional project-specific guardrails", content)
+        policy = (SCRIPT.parents[1] / "assets" / "delegation-policy.md").read_text(encoding="utf-8").strip()
+        self.assertEqual(content.count(policy), 1)
         before = digest(agents)
 
         second = run(self.project, "--principle", "User notes remain local by default")
@@ -103,6 +105,78 @@ class SetupHarnessTest(unittest.TestCase):
                     ["npm", "run", script], cwd=self.project, capture_output=True, text=True, check=False
                 )
                 self.assertEqual(validation.returncode, 0, validation.stderr)
+
+    def test_delegation_refresh_preserves_user_policy_and_model_settings(self) -> None:
+        codex_dir = self.project / ".codex"
+        (codex_dir / "agents").mkdir(parents=True)
+        config = codex_dir / "config.toml"
+        config.write_text(
+            'model = "user-selected-model"\nmodel_reasoning_effort = "high"\n'
+            '[agents]\nenabled = false\n', encoding="utf-8"
+        )
+        role = codex_dir / "agents" / "reviewer.toml"
+        role.write_text('name = "reviewer"\nmodel = "user-review-model"\n', encoding="utf-8")
+        skill = self.project / ".agents" / "skills" / "project-review" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: project-review\ndescription: 문서 검토용\n---\n", encoding="utf-8")
+        original_files = {path: digest(path) for path in (config, role, skill)}
+        agents = self.project / "AGENTS.md"
+        user_content = "# 사용자 규칙\n\nLuna를 쓰지 않는다.\n"
+        agents.write_text(
+            f"{PHILOSOPHY}\n<!-- womc:version=1.3.1 -->\n{START}\n"
+            "### 프로젝트 목적\n기존 프로젝트\n"
+            "### 변하지 않는 제품 원칙\n- 서브에이전트는 읽기 전용으로 사용한다.\n"
+            "### 지속적인 완료 기준\n- 실제 결과 확인\n"
+            "### 보안·승인 경계\n- 외부 전송 승인 필요\n"
+            "### 작업별 문서·스킬 경로\n"
+            "- 문서 검토: `docs/review.md`를 읽는다. <!-- womc:manual-route -->\n"
+            "### 공통 검증 방법\n  - `local-check` (프로젝트 검증)\n"
+            f"{END}\n\n{user_content}", encoding="utf-8"
+        )
+        old_digest = digest(agents)
+        preview = run(self.project, "--dry-run")
+        self.assertEqual(preview.returncode, 0, preview.stderr)
+        self.assertEqual(digest(agents), old_digest)
+        self.assertEqual(run(self.project, "--check").returncode, 1)
+        self.assertEqual(digest(agents), old_digest)
+
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = agents.read_text(encoding="utf-8")
+        # Verify the shipped policy is embedded once, not just linked to a cache path.
+        policy = (SCRIPT.parents[1] / "assets" / "delegation-policy.md").read_text(encoding="utf-8").strip()
+        self.assertEqual(content.count(policy), 1)
+        for value in ("기존 프로젝트", "서브에이전트는 읽기 전용으로 사용한다.", "실제 결과 확인",
+                      "외부 전송 승인 필요", "docs/review.md", "`local-check`"):
+            self.assertIn(value, content)
+        self.assertTrue(content.endswith(user_content))
+        self.assertEqual(run(self.project).returncode, 0)
+        self.assertEqual(agents.read_text(encoding="utf-8"), content)
+        self.assertEqual(run(self.project, "--check").returncode, 0)
+        self.assertEqual({path: digest(path) for path in original_files}, original_files)
+        # The harness must not install role files or change user configuration.
+        actual_files = {path.relative_to(self.project) for path in self.project.rglob("*")
+                        if path.is_file() and ".git" not in path.relative_to(self.project).parts}
+        self.assertEqual(actual_files, {Path("AGENTS.md"), *(path.relative_to(self.project) for path in original_files)})
+
+    def test_missing_policy_asset_fails_without_modifying_project(self) -> None:
+        # Simulate an incomplete plugin package, not a user project error.
+        with tempfile.TemporaryDirectory() as package_name:
+            packaged_script = Path(package_name) / "skills" / "works-on-my-codex" / "scripts" / SCRIPT.name
+            packaged_script.parent.mkdir(parents=True)
+            shutil.copyfile(SCRIPT, packaged_script)
+            agents = self.project / "AGENTS.md"
+            agents.write_text("# 기존 지침\n", encoding="utf-8")
+            before = digest(agents)
+            for mode in ([], ["--dry-run"], ["--check"]):
+                with self.subTest(mode=mode):
+                    result = subprocess.run(
+                        [sys.executable, str(packaged_script), "--project", str(self.project), *mode],
+                        capture_output=True, text=True, check=False,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("delegation-policy.md", result.stderr)
+                    self.assertEqual(digest(agents), before)
 
     def test_malformed_markers_stop_without_writing(self) -> None:
         agents = self.project / "AGENTS.md"

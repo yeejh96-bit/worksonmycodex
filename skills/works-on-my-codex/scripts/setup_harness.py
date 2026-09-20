@@ -16,6 +16,7 @@ from typing import Iterable
 
 START = "<!-- womc:project-harness:start -->"
 END = "<!-- womc:project-harness:end -->"
+DELEGATION_POLICY = Path(__file__).resolve().parents[1] / "assets" / "delegation-policy.md"
 
 
 def plugin_version() -> str:
@@ -25,7 +26,7 @@ def plugin_version() -> str:
         value = json.loads(manifest.read_text(encoding="utf-8")).get("version")
     except (OSError, UnicodeError, ValueError, AttributeError):
         value = None
-    return value if isinstance(value, str) and value.strip() else "1.3.1"
+    return value if isinstance(value, str) and value.strip() else "1.4.0"
 
 
 WOMC_VERSION = plugin_version()
@@ -424,6 +425,7 @@ def make_block(
         "### 자율 실행 원칙",
     ]
     lines.extend(bullet_lines(AUTONOMY_PRINCIPLES))
+    lines.extend(["", read_utf8(DELEGATION_POLICY).strip()])
 
     if project_summary:
         lines.extend(["", "### 프로젝트 목적", project_summary])
