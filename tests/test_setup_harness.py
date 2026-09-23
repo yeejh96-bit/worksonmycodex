@@ -68,6 +68,14 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("unchanged", second.stdout)
         self.assertEqual(digest(agents), before)
 
+    def test_delegation_policy_selects_from_current_tool_catalog(self) -> None:
+        policy = (SCRIPT.parents[1] / "assets" / "delegation-policy.md").read_text(encoding="utf-8")
+        self.assertIn("현재 도구가 제공하는 모델 목록", policy)
+        self.assertIn("지원 추론 수준", policy)
+        self.assertIn("번호가 가장 높은 세대", policy)
+        self.assertIn("이전 세대 모델로 자동 대체하지 않는다", policy)
+        self.assertNotRegex(policy, r"gpt-\d+(?:\.\d+)?-[a-z]+")
+
     def test_existing_agents_and_source_are_preserved(self) -> None:
         original_agents = "# Team rules\n\nKeep this exact line.\n"
         (self.project / "AGENTS.md").write_text(original_agents, encoding="utf-8")
