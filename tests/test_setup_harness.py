@@ -68,13 +68,83 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("unchanged", second.stdout)
         self.assertEqual(digest(agents), before)
 
-    def test_delegation_policy_selects_from_current_tool_catalog(self) -> None:
+    def test_generated_delegation_policy_is_short_and_keeps_only_durable_principles(self) -> None:
         policy = (SCRIPT.parents[1] / "assets" / "delegation-policy.md").read_text(encoding="utf-8")
-        self.assertIn("현재 도구가 제공하는 모델 목록", policy)
-        self.assertIn("지원 추론 수준", policy)
-        self.assertIn("번호가 가장 높은 세대", policy)
-        self.assertIn("이전 세대 모델로 자동 대체하지 않는다", policy)
-        self.assertNotRegex(policy, r"gpt-\d+(?:\.\d+)?-[a-z]+")
+        self.assertLessEqual(len(policy.splitlines()), 8)
+        for principle in ("조사·구현·검토", "복잡도·위험·검증 난도", "메인이 직접 처리", "최종 검증", "모델·예산·위임 제한"):
+            self.assertIn(principle, policy)
+        for detail in ("GPT-N", "번호가 가장 높은", "low", "medium", "high", "fallback", "| --- |"):
+            self.assertNotIn(detail, policy)
+
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(content.count(policy.strip()), 1)
+        self.assertNotIn("위임할 때 확인할 점", content)
+        self.assertNotIn("GPT-N", content)
+
+    def test_default_approval_boundary_is_based_on_impact_and_reversibility(self) -> None:
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        content = (self.project / "AGENTS.md").read_text(encoding="utf-8")
+        for phrase in ("되돌리기 쉬운 로컬 코드·문서·테스트·안전한 설정 변경", "금전 비용 발생", "운영 환경·외부 사용자", "사용자 데이터 손실·공개", "자격 증명 노출", "되돌리기 어려운 외부 변경", "Codex 플랫폼과 프로젝트의 상위 보안·승인 정책"):
+            self.assertIn(phrase, content)
+        self.assertNotIn("외부 서비스 변경, 원격 저장소 변경 전", content)
+
+    def test_refresh_replaces_legacy_default_approval_without_losing_custom_rule(self) -> None:
+        initial = run(self.project)
+        self.assertEqual(initial.returncode, 0, initial.stderr)
+        agents = self.project / "AGENTS.md"
+        content = agents.read_text(encoding="utf-8")
+        start = content.index("### 보안·승인 경계\n")
+        end = content.index("\n### 작업별 문서·스킬 경로", start)
+        legacy = (
+            "### 보안·승인 경계\n"
+            "- 비밀 정보 열람·노출, 데이터 삭제, 운영 데이터 변경, 실제 결제, 배포, 외부 서비스 변경, 원격 저장소 변경 전에는 명시적 승인을 받는다.\n"
+            "- 되돌릴 수 있는 일반 프로젝트 수정과 안전한 로컬 검증은 별도 승인 없이 진행할 수 있다.\n"
+            "- 민감한 고객 기록의 외부 전송은 담당자 승인을 받는다.\n"
+        )
+        agents.write_text(content[:start] + legacy + content[end:], encoding="utf-8")
+
+        refreshed = run(self.project)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
+        updated = agents.read_text(encoding="utf-8")
+        self.assertIn("금전 비용 발생", updated)
+        self.assertIn("민감한 고객 기록의 외부 전송은 담당자 승인을 받는다.", updated)
+        self.assertNotIn("비밀 정보 열람·노출, 데이터 삭제", updated)
+        self.assertNotIn("되돌릴 수 있는 일반 프로젝트 수정", updated)
+        self.assertEqual(run(self.project, "--check").returncode, 0)
+        self.assertEqual(run(self.project).returncode, 0)
+        self.assertEqual(agents.read_text(encoding="utf-8"), updated)
+
+    def test_existing_project_refreshes_previous_delegation_policy(self) -> None:
+        agents = self.project / "AGENTS.md"
+        agents.write_text(
+            f"{PHILOSOPHY}\n<!-- womc:version=1.5.2 -->\n{START}\n"
+            "### 서브에이전트 위임\n"
+            "- 번호가 가장 높은 세대(GPT-N)를 고른다.\n"
+            "| 위임 작업 | 추론 수준 |\n| --- | --- |\n| 탐색 | low |\n"
+            "### 프로젝트 목적\n기존 프로젝트의 목적을 유지한다.\n"
+            "### 보안·승인 경계\n"
+            "- 비밀 정보 열람·노출, 데이터 삭제, 운영 데이터 변경, 실제 결제, 배포, 외부 서비스 변경, 원격 저장소 변경 전에는 명시적 승인을 받는다.\n"
+            f"{END}\n\n# 사용자 작성 지침\n이 문장을 보존한다.\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(run(self.project, "--check").returncode, 1)
+        result = run(self.project)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        updated = agents.read_text(encoding="utf-8")
+        self.assertIn(VERSION_MARKER, updated)
+        self.assertIn("분리 가능한 조사·구현·검토는 서브에이전트에 위임할 수 있다.", updated)
+        self.assertIn("금전 비용 발생", updated)
+        self.assertIn("기존 프로젝트의 목적을 유지한다.", updated)
+        self.assertIn("# 사용자 작성 지침\n이 문장을 보존한다.", updated)
+        self.assertNotIn("GPT-N", updated)
+        self.assertNotIn("위임 작업 | 추론 수준", updated)
+        self.assertEqual(run(self.project, "--check").returncode, 0)
+        self.assertEqual(run(self.project).returncode, 0)
+        self.assertEqual(agents.read_text(encoding="utf-8"), updated)
 
     def test_existing_agents_and_source_are_preserved(self) -> None:
         original_agents = "# Team rules\n\nKeep this exact line.\n"

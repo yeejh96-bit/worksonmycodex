@@ -26,7 +26,7 @@ def plugin_version() -> str:
         value = json.loads(manifest.read_text(encoding="utf-8")).get("version")
     except (OSError, UnicodeError, ValueError, AttributeError):
         value = None
-    return value if isinstance(value, str) and value.strip() else "1.5.2"
+    return value if isinstance(value, str) and value.strip() else "1.5.3"
 
 
 WOMC_VERSION = plugin_version()
@@ -39,11 +39,9 @@ MAINTENANCE_ROUTE = (
 )
 AUTONOMY_PRINCIPLES = (
     "목표와 범위가 충분히 분명하면 조사나 계획에서 멈추지 않고 구현·검증·결과 보고까지 진행한다.",
-    "결과를 크게 바꾸지 않는 세부 사항은 프로젝트 관례와 증거를 바탕으로 정하고, 되돌리기 어려운 결정이나 목표를 바꾸는 선택만 사용자에게 묻는다.",
-    "필요한 질문은 현재 환경에 비동기 질문 도구가 있으면 활용하고, 답변과 무관한 안전한 작업은 계속한다. 답변이나 승인이 필요한 작업은 응답을 기다리며, 무응답을 동의로 간주하지 않는다.",
-    "작업 중 이후 결과를 바꾸는 프로젝트 사실·제약·완료 기준·검증 방법을 알게 되면 현재 작업을 끝내기 전에 하네스나 연결된 문서·스킬에 반영한다.",
-    "현재 작업의 진행 기록과 일회성 계획은 하네스에 쌓지 않는다.",
-    "스킬을 만들거나 바꿀 때는 기존 지침으로 해결되지 않는 재사용 가치가 있는지 확인하고, 필요한 작업에서만 읽도록 한다. 일반적인 작업 조언만 담은 스킬은 만들지 않는다.",
+    "되돌리기 쉬운 세부 사항은 스스로 결정하고, 목표를 바꾸거나 되돌리기 어려운 결정만 사용자에게 묻는다. 답변과 무관한 안전한 작업은 계속하며 무응답을 동의로 간주하지 않는다.",
+    "새로 확인한 지속적인 프로젝트 맥락은 하네스나 연결 문서에 반영하고, 일회성 계획과 진행 기록은 쌓지 않는다.",
+    "스킬은 프로젝트 고유 지식·도구·품질 기준에 재사용 가치가 있을 때만 만들거나 바꾸고, 필요한 작업에서만 읽는다.",
 )
 COMMUNICATION_PREFACE = (
     "나는 코딩을 모른다. 전문 용어는 쉽고 간결하게 설명한다.",
@@ -54,6 +52,11 @@ PHILOSOPHY = (
     "AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다."
 )
 DEFAULT_APPROVAL_BOUNDARIES = (
+    "되돌리기 쉬운 로컬 코드·문서·테스트·안전한 설정 변경은 요청 범위 안에서 자율적으로 진행한다.",
+    "금전 비용 발생, 운영 환경·외부 사용자에 대한 실제 영향, 사용자 데이터 손실·공개, 자격 증명 노출, 되돌리기 어려운 외부 변경은 실행 전에 명시적 승인을 받는다.",
+    "사용자의 구체적인 요청은 해당 범위의 승인으로 보며, Codex 플랫폼과 프로젝트의 상위 보안·승인 정책을 따른다.",
+)
+LEGACY_DEFAULT_APPROVAL_BOUNDARIES = (
     "비밀 정보 열람·노출, 데이터 삭제, 운영 데이터 변경, 실제 결제, 배포, 외부 서비스 변경, 원격 저장소 변경 전에는 명시적 승인을 받는다.",
     "되돌릴 수 있는 일반 프로젝트 수정과 안전한 로컬 검증은 별도 승인 없이 진행할 수 있다.",
 )
@@ -654,7 +657,10 @@ def main() -> int:
                 persisted_bullets(existing, "보안·승인 경계")
                 or persisted_bullets(existing, "Security and approval boundaries")
             )
-            if value not in DEFAULT_APPROVAL_BOUNDARIES and not value.startswith("Get explicit approval before") and not value.startswith("Routine reversible project edits")
+            if value not in DEFAULT_APPROVAL_BOUNDARIES
+            and value not in LEGACY_DEFAULT_APPROVAL_BOUNDARIES
+            and not value.startswith("Get explicit approval before")
+            and not value.startswith("Routine reversible project edits")
         ]
         old_checks = persisted_project_checks(existing)
         old_routes = persisted_manual_routes(existing)
