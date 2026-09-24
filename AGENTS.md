@@ -2,7 +2,7 @@
 모든 설명·보고는 한국어로 하며, 쉽고 간결하게 한다.
 
 > **WOMC 철학:** 사람은 원하는 것과 되돌릴 수 없는 결정만 맡고, 나머지는 모델이 맡는다. AGENTS.md에는 자율 실행 원칙, 프로젝트 목적·지속 제약·완료 기준, 작업별 읽기 경로, 공통 검증 방법만 둔다.
-<!-- womc:version=1.5.3 -->
+<!-- womc:version=1.6.0 -->
 <!-- womc:project-harness:start -->
 <!-- womc:context-snapshot=sha256:5448ad62ccd525aa104d7b94f50526af1f0f0e154777307c565606c041200ca7 -->
 ## WOMC 프로젝트 하네스
@@ -39,7 +39,8 @@
 
 ### 작업별 문서·스킬 경로
 - 프로젝트 목적·지속 제약·완료 기준·읽기 경로·워크스페이스·검증 명령을 바꾼 작업은 끝내기 전에 `$works-on-my-codex`로 루트 `AGENTS.md` 하네스를 갱신한다.
-- WOMC 설치·온보딩·수동 갱신 또는 사용자 경험 변경: `docs/사용자-경험.md` 문서를 읽는다. <!-- womc:manual-route -->
+- WOMC 설치·온보딩·수동 갱신: `skills/works-on-my-codex/SKILL.md`와 `docs/사용자-경험.md`를 읽는다. <!-- womc:manual-route -->
+- 사용자 경험 변경: `docs/사용자-경험.md`를 읽는다. <!-- womc:manual-route -->
 - 프로젝트 맥락 또는 동작 변경: `README.md` 문서를 읽는다.
 
 ### 공통 검증 방법

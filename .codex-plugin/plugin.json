@@ -1,6 +1,6 @@
 {
   "name": "works-on-my-codex",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "description": "Create and manually refresh a thin, project-specific Codex harness.",
   "author": {
     "name": "Works on My Codex contributors"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "WOMC \u2014 Works on My Codex",
     "shortDescription": "Create and manually refresh a thin Codex project harness.",
-    "longDescription": "WOMC creates and refreshes a thin project harness when asked in natural language. On an explicit WOMC update request, it refreshes the Git marketplace and installed plugin before updating the current project harness. It preserves durable project context, avoids duplicating natively discovered skill descriptions, and does not register session-start hooks.",
+    "longDescription": "WOMC creates and refreshes a thin project harness when asked in natural language. On first application or an explicit update, it reviews project skills and visible tool connections once. An explicit update refreshes the Git marketplace and installed plugin before updating the current project harness. It preserves durable project context and does not register session-start hooks.",
     "developerName": "Works on My Codex contributors",
     "category": "Productivity",
     "capabilities": [

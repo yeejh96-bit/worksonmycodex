@@ -68,6 +68,33 @@ class SetupHarnessTest(unittest.TestCase):
         self.assertIn("unchanged", second.stdout)
         self.assertEqual(digest(agents), before)
 
+    def test_harness_refresh_does_not_persist_audit_findings_or_change_tools(self) -> None:
+        skill = self.project / ".agents" / "skills" / "review" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text(
+            "---\nname: review\ndescription: 프로젝트 검토에서 사용합니다.\n---\n"
+            "# 검토\n모든 작업에 전체 테스트를 실행한다.\n",
+            encoding="utf-8",
+        )
+        connection = self.project / ".codex" / "mcp.toml"
+        connection.parent.mkdir(parents=True)
+        connection.write_text("[mcp_servers.example]\nenabled = true\n", encoding="utf-8")
+        agents = self.project / "AGENTS.md"
+        agents.write_text("# 사용자 작성 지침\n이 문장을 보존한다.\n", encoding="utf-8")
+        skill_digest, connection_digest = digest(skill), digest(connection)
+
+        self.assertEqual(run(self.project).returncode, 0)
+        refreshed = agents.read_text(encoding="utf-8")
+        self.assertIn("# 사용자 작성 지침\n이 문장을 보존한다.", refreshed)
+        self.assertNotIn("전체 테스트를 실행한다", refreshed)
+        self.assertNotIn("제거 후보", refreshed)
+        self.assertNotIn("mcp_servers.example", refreshed)
+        self.assertEqual(digest(skill), skill_digest)
+        self.assertEqual(digest(connection), connection_digest)
+        self.assertEqual(run(self.project, "--check").returncode, 0)
+        self.assertEqual(run(self.project).returncode, 0)
+        self.assertEqual(agents.read_text(encoding="utf-8"), refreshed)
+
     def test_generated_delegation_policy_is_short_and_keeps_only_durable_principles(self) -> None:
         policy = (SCRIPT.parents[1] / "assets" / "delegation-policy.md").read_text(encoding="utf-8")
         self.assertLessEqual(len(policy.splitlines()), 8)
